@@ -17,7 +17,7 @@ namespace exl::hook::impl {
         static ALWAYS_INLINE void InstallAtOffset(ptrdiff_t address) {
             _HOOK_STATIC_CALLBACK_ASSERT();
 
-            nx64::HookFuncRaw(util::modules::GetTargetStart() + address, Derived::Callback);
+            nx64::HookFuncRaw<CallbackFuncPtr<>>(util::modules::GetTargetStart() + address, Derived::Callback);
         }
 
         template<typename R, typename ...A>

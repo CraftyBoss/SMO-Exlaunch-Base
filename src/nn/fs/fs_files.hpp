@@ -1,8 +1,16 @@
 #pragma once
 
 #include "fs_types.hpp"
+#include "types.h"
 
 namespace nn::fs {
+
+    struct FileTimeStamp {
+        u64 mTime1; // date created
+        u64 mTime2; // sometimes is identical to above
+        u64 mTime3; // looks like the date the file was created without exact time?
+        bool unkBool;
+    };
 
     /*
         Create a file.
@@ -83,4 +91,9 @@ namespace nn::fs {
         handle: Handle representing file to flush.
     */
     Result FlushFile(FileHandle handle);
+
+    // Result GetSaveDataTimeStamp(nn::time::PosixTime *,ulong);
+    // Result GetSaveDataTimeStamp(nn::time::PosixTime*, nn::fs::SaveDataSpaceId, ulong);
+    Result GetFileTimeStampForDebug(nn::fs::FileTimeStamp*, char const*);
+
 } // namespace nn::fs

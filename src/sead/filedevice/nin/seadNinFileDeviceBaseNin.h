@@ -1,6 +1,7 @@
 #pragma once
 
 #include <nn/fs.h>
+#include <nn/result.h>
 #include "filedevice/seadFileDevice.h"
 #include "prim/seadSafeString.h"
 
@@ -45,7 +46,7 @@ protected:
     DirectoryHandleInner* getDirectoryHandleInner_(HandleBase* handle,
                                                    bool construct = false) const;
 
-    nn::Result mLastError = nn::ResultSuccess{};
+    nn::Result mLastError;
     SafeString mMountPoint;
 };
 }  // namespace sead

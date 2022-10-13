@@ -60,7 +60,7 @@ void Logger::log(const char *fmt, ...) {
     char buffer[0x500] = {};
 
     if(nn::util::VSNPrintf(buffer, sizeof(buffer), fmt, args) > 0) {
-        nn::socket::Send(instance().mSocketFd, buffer, sizeof(buffer), 0);
+        nn::socket::Send(instance().mSocketFd, buffer, strlen(buffer), 0);
     }
 
     va_end(args);
@@ -74,6 +74,6 @@ void Logger::log(const char *fmt, va_list args) {
     char buffer[0x500] = {};
 
     if(nn::util::VSNPrintf(buffer, sizeof(buffer), fmt, args) > 0) {
-        nn::socket::Send(instance().mSocketFd, buffer, sizeof(buffer), 0);
+        nn::socket::Send(instance().mSocketFd, buffer, strlen(buffer), 0);
     }
 }

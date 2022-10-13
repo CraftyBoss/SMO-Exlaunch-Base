@@ -2,16 +2,33 @@
 #include "patches.hpp"
 #include "nn/err.h"
 #include "logger/Logger.hpp"
-#include "fs.hpp"
+#include "fs.h"
 
 #include <basis/seadRawPrint.h>
 #include <prim/seadSafeString.h>
-#include <resource/seadResource.h>
+#include <resource/seadResourceMgr.h>
+#include <filedevice/nin/seadNinSDFileDeviceNin.h>
+#include <filedevice/seadFileDeviceMgr.h>
+#include <filedevice/seadPath.h>
 #include <resource/seadArchiveRes.h>
+#include <framework/seadFramework.h>
+#include <heap/seadHeapMgr.h>
+#include <heap/seadExpHeap.h>
+#include <devenv/seadDebugFontMgrNvn.h>
+#include <gfx/seadTextWriter.h>
 
 #include "game/StageScene/StageScene.h"
+#include "game/System/GameSystem.h"
 #include "rs/util.hpp"
+
 #include "al/util.hpp"
+#include "al/fs/FileLoader.h"
+
+static const char *DBG_FONT_PATH   = "DebugData/Font/nvn_font_jis1.ntx";
+static const char *DBG_SHADER_PATH = "DebugData/Font/nvn_font_shader_jis1.bin";
+static const char *DBG_TBL_PATH    = "DebugData/Font/nvn_font_jis1_tbl.bin";
+
+sead::TextWriter *gTextWriter;
 
 void graNoclipCode(al::LiveActor *player) {
 
@@ -60,9 +77,6 @@ void controlLol(StageScene* scene) {
     static bool isNoclip = false;
 
     if(al::isPadTriggerRight(-1)) {
-        Logger::log("logus\n");
-        svcBreak(0x1234, 0x5678, 0x9);
-
         isNoclip = !isNoclip;
 
         if(!isNoclip) {
@@ -99,7 +113,7 @@ HOOK_DEFINE_TRAMPOLINE(DisableUserExceptionHandler) {
     }
 };
 
-HOOK_DEFINE_TRAMPOLINE(ReplaceSeadPrint) {
+HOOK_DEFINE_REPLACE(ReplaceSeadPrint) {
     static void Callback(const char* format, ...) {
         va_list args;
         va_start(args, format);
@@ -108,40 +122,101 @@ HOOK_DEFINE_TRAMPOLINE(ReplaceSeadPrint) {
     }
 };
 
-HOOK_DEFINE_TRAMPOLINE(CrashOnTitle) {
-    static void Callback() {
-        svcBreak(0x12,0,0);
+HOOK_DEFINE_TRAMPOLINE(CreateFileDeviceMgr) {
+    static void Callback(sead::FileDeviceMgr *thisPtr) {
+        
+        Orig(thisPtr);
+
+        thisPtr->mMountedSd = nn::fs::MountSdCardForDebug("sd").isSuccess();
+
+        sead::NinSDFileDevice *sdFileDevice = new sead::NinSDFileDevice();
+
+        thisPtr->mount(sdFileDevice);
     }
 };
 
-HOOK_DEFINE_TRAMPOLINE(OpenFile) {
-    static sead::ArchiveRes* Callback(sead::SafeString const &path, char const *extension, sead::FileDevice *fileDevice) {
-        
-        Logger::log("Opening File With Ext %s At Path: %s\n", extension, path.cstr());
-        
-        return Orig(path, extension, fileDevice);
+HOOK_DEFINE_TRAMPOLINE(RedirectFileDevice) {
+    static sead::FileDevice *Callback(sead::FileDeviceMgr *thisPtr, sead::SafeString &path, sead::BufferedSafeString *pathNoDrive) {
+
+        sead::FixedSafeString<32> driveName;
+        sead::FileDevice* device;
+
+        Logger::log("Path: %s\n", path.cstr());
+
+        if (!sead::Path::getDriveName(&driveName, path))
+        {
+            
+            device = thisPtr->findDevice("sd");
+
+            if(!(device && device->isExistFile(path))) {
+
+                device = thisPtr->getDefaultFileDevice();
+
+                if (!device)
+                {
+                    Logger::log("drive name not found and default file device is null\n");
+                    return nullptr;
+                }
+
+            }else {
+                Logger::log("Found Replacement File on SD! Path: %s\n", path.cstr());
+            }
+            
+        }
+        else
+            device = thisPtr->findDevice(driveName);
+
+        if (!device)
+            return nullptr;
+
+        if (pathNoDrive != NULL)
+            sead::Path::getPathExceptDrive(pathNoDrive, path);
+
+        return device;
     }
 };
+
+HOOK_DEFINE_TRAMPOLINE(FileLoaderLoadArc) {
+    static sead::ArchiveRes *Callback(al::FileLoader *thisPtr, sead::SafeString &path, const char *ext, sead::FileDevice *device) {
+
+        Logger::log("Path: %s\n", path.cstr());
+
+        sead::FileDevice* sdFileDevice = sead::FileDeviceMgr::instance()->findDevice("sd");
+
+        if(sdFileDevice && sdFileDevice->isExistFile(path)) {
+
+            Logger::log("Found Replacement File on SD! Path: %s\n", path.cstr());
+
+            device = sdFileDevice;
+        }
+
+        return Orig(thisPtr, path, ext, device);
+    }
+}
+;
 
 extern "C" void exl_main(void* x0, void* x1) {
     /* Setup hooking enviroment. */
     envSetOwnProcessHandle(exl::util::proc_handle::Get());
     exl::hook::Initialize();
 
+    runCodePatches();
+
     // R_ABORT_UNLESS(Logger::instance().init("64.201.219.20", 3080).value);
     R_ABORT_UNLESS(Logger::instance().init("10.0.0.224", 3080).value);
 
-    nn::fs::MountSdCardForDebug("sd");
+    // SD File Redirection
 
-    // DisableUserExceptionHandler::InstallAtFuncPtr(nn::os::SetUserExceptionHandler);
+    RedirectFileDevice::InstallAtOffset(0x76CFE0);
+    FileLoaderLoadArc::InstallAtOffset(0xA5EF64);
+    CreateFileDeviceMgr::InstallAtOffset(0x76C8D4);
+
+    // Sead Debugging Overriding
 
     ReplaceSeadPrint::InstallAtOffset(0xB59E28);
 
     ControlHook::InstallAtSymbol("_ZN10StageScene7controlEv");
 
-    OpenFile::InstallAtOffset(0xA5EF64);
-
-    runCodePatches();
 
 }
 
