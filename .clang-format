@@ -1,0 +1,7 @@
+Language: Cpp
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 120
+NamespaceIndentation: All
+PointerAlignment: Left
+AlwaysBreakTemplateDeclarations: Yes
