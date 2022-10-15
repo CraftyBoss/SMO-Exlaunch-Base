@@ -16,9 +16,12 @@
 #include <heap/seadExpHeap.h>
 #include <devenv/seadDebugFontMgrNvn.h>
 #include <gfx/seadTextWriter.h>
+#include <gfx/seadViewport.h>
 
 #include "game/StageScene/StageScene.h"
 #include "game/System/GameSystem.h"
+#include "game/System/Application.h"
+#include "game/HakoniwaSequence/HakoniwaSequence.h"
 #include "rs/util.hpp"
 
 #include "al/util.hpp"
@@ -192,8 +195,63 @@ HOOK_DEFINE_TRAMPOLINE(FileLoaderLoadArc) {
 
         return Orig(thisPtr, path, ext, device);
     }
-}
-;
+};
+
+HOOK_DEFINE_TRAMPOLINE(FileLoaderIsExistFile) {
+    static bool Callback(al::FileLoader *thisPtr, sead::SafeString &path, sead::FileDevice *device) {
+
+        sead::FileDevice* sdFileDevice = sead::FileDeviceMgr::instance()->findDevice("sd");
+
+        if(sdFileDevice && sdFileDevice->isExistFile(path)) device = sdFileDevice;
+
+        return Orig(thisPtr, path, device);
+    }
+};
+
+HOOK_DEFINE_TRAMPOLINE(GameSystemInit) {
+    static void Callback(GameSystem *thisPtr) {
+
+        sead::Heap* curHeap = sead::HeapMgr::instance()->getCurrentHeap();
+
+        sead::DebugFontMgrJis1Nvn::createInstance(curHeap);
+
+        if (al::isExistFile(DBG_SHADER_PATH) && al::isExistFile(DBG_FONT_PATH) && al::isExistFile(DBG_TBL_PATH)) {
+            sead::DebugFontMgrJis1Nvn::sInstance->initialize(curHeap, DBG_SHADER_PATH, DBG_FONT_PATH, DBG_TBL_PATH, 0x100000);
+        }
+
+        sead::TextWriter::setDefaultFont(sead::DebugFontMgrJis1Nvn::sInstance);
+
+        al::GameDrawInfo* drawInfo = Application::instance()->mDrawInfo;
+
+        agl::DrawContext *context = drawInfo->mDrawContext;
+        agl::RenderBuffer* renderBuffer = drawInfo->mFirstRenderBuffer;
+
+        sead::Viewport* viewport = new sead::Viewport(*renderBuffer);
+
+        gTextWriter = new sead::TextWriter(context, viewport);
+
+        gTextWriter->setupGraphics(context);
+
+        gTextWriter->mColor = sead::Color4f(1.f, 1.f, 1.f, 0.8f);
+
+        Orig(thisPtr);
+
+    }
+};
+
+HOOK_DEFINE_TRAMPOLINE(DrawDebugMenu) {
+    static void Callback(HakoniwaSequence *thisPtr) { 
+
+        Orig(thisPtr);
+        
+        gTextWriter->beginDraw();
+
+        gTextWriter->setCursorFromTopLeft(sead::Vector2f(10.f, 10.f));
+        gTextWriter->printf("FPS: %d\n", static_cast<int>(round(Application::instance()->mFramework->calcFps())));
+
+        gTextWriter->endDraw();
+    }
+};
 
 extern "C" void exl_main(void* x0, void* x1) {
     /* Setup hooking enviroment. */
@@ -202,21 +260,26 @@ extern "C" void exl_main(void* x0, void* x1) {
 
     runCodePatches();
 
-    // R_ABORT_UNLESS(Logger::instance().init("64.201.219.20", 3080).value);
     R_ABORT_UNLESS(Logger::instance().init("10.0.0.224", 3080).value);
+
+    GameSystemInit::InstallAtOffset(0x535850);
 
     // SD File Redirection
 
     RedirectFileDevice::InstallAtOffset(0x76CFE0);
     FileLoaderLoadArc::InstallAtOffset(0xA5EF64);
     CreateFileDeviceMgr::InstallAtOffset(0x76C8D4);
+    FileLoaderIsExistFile::InstallAtOffset(0xA5ED28);
 
     // Sead Debugging Overriding
 
     ReplaceSeadPrint::InstallAtOffset(0xB59E28);
 
-    ControlHook::InstallAtSymbol("_ZN10StageScene7controlEv");
+    // Debug Text Writer Drawing
 
+    DrawDebugMenu::InstallAtOffset(0x50F1D8);
+
+    ControlHook::InstallAtSymbol("_ZN10StageScene7controlEv");
 
 }
 
