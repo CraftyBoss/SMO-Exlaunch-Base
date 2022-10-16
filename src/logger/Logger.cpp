@@ -46,6 +46,10 @@ nn::Result Logger::init(const char *ip, u16 port) {
 
     mState = result.isSuccess() ? LoggerState::CONNECTED : LoggerState::DISCONNECTED;
 
+    if (mState == LoggerState::CONNECTED) {
+        Logger::log("Connected!\n");
+    }
+
     return result;
 }
 

@@ -18,6 +18,7 @@
 #include <gfx/seadTextWriter.h>
 #include <gfx/seadViewport.h>
 
+#include "al/util.hpp"
 #include "game/StageScene/StageScene.h"
 #include "game/System/GameSystem.h"
 #include "game/System/Application.h"
@@ -45,30 +46,30 @@ void graNoclipCode(al::LiveActor *player) {
     sead::Vector3f *playerPos = al::getTransPtr(player);
     sead::Vector3f *cameraPos = al::getCameraPos(player, 0);
     sead::Vector2f *leftStick = al::getLeftStick(-1);
-    
+
     // Its better to do this here because loading zones reset this.
     al::offCollide(player);
     al::setVelocityZero(player);
-    
+
     // Mario slightly goes down even when velocity is 0. This is a hacky fix for that.
     playerPos->y += 1.4553f;
-    
+
     float d = sqrt(al::powerIn(playerPos->x - cameraPos->x, 2) + (al::powerIn(playerPos->z - cameraPos->z, 2)));
     float vx = ((speed + speedGain)/d)*(playerPos->x - cameraPos->x);
     float vz = ((speed + speedGain)/d)*(playerPos->z - cameraPos->z);
-    
+
     if (!al::isPadHoldZR(-1)) {
         playerPos->x -= leftStick->x * vz;
         playerPos->z += leftStick->x * vx;
-        
+
         playerPos->x += leftStick->y * vx;
         playerPos->z += leftStick->y * vz;
-        
+
         if (al::isPadHoldX(-1)) speedGain -= 0.5f;
         if (al::isPadHoldY(-1)) speedGain += 0.5f;
         if (speedGain <= 0.0f) speedGain = 0.0f;
         if (speedGain >= speedMax) speedGain = speedMax;
-        
+
         if (al::isPadHoldZL(-1) || al::isPadHoldA(-1)) playerPos->y -= (vspeed + speedGain/6);
         if (al::isPadHoldB(-1)) playerPos->y += (vspeed + speedGain/6);
     }
@@ -95,7 +96,7 @@ void controlLol(StageScene* scene) {
 HOOK_DEFINE_TRAMPOLINE(ControlHook) {
     static void Callback(StageScene* scene) {
         controlLol(scene);
-        Orig(scene);   
+        Orig(scene);
     }
 };
 
@@ -107,9 +108,9 @@ HOOK_DEFINE_TRAMPOLINE(DisableUserExceptionHandler) {
         static nn::os::UserExceptionInfo exceptionInfo;
         Orig([](nn::os::UserExceptionInfo* exceptionInfo){
             Logger::log("Among us!!!!!! %p\n", exceptionInfo->PC.x);
-            for (size_t i = 0; i < 29; i++)
+            for (auto& CpuRegister : exceptionInfo->CpuRegisters)
             {
-                Logger::log("my nuts! %p\n", exceptionInfo->CpuRegisters[i].x);
+                Logger::log("my nuts! %p\n", CpuRegister.x);
             }
         }, exceptionStack, sizeof(exceptionStack), &exceptionInfo);
 
@@ -258,9 +259,9 @@ extern "C" void exl_main(void* x0, void* x1) {
     envSetOwnProcessHandle(exl::util::proc_handle::Get());
     exl::hook::Initialize();
 
-    runCodePatches();
-
     R_ABORT_UNLESS(Logger::instance().init("10.0.0.224", 3080).value);
+
+    runCodePatches();
 
     GameSystemInit::InstallAtOffset(0x535850);
 

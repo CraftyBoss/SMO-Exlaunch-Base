@@ -34,3 +34,4 @@ build/
 *.exe
 *.out
 *.app
+.idea/

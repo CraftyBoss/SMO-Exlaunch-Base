@@ -19,6 +19,13 @@ struct Result
     }
 
     u32 value;
+
+    bool operator==(int other) const {
+        return (int) value == other;
+    }
+    bool operator!=(int other) const {
+        return (int) value != other;
+    }
 };
 
 }
