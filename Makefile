@@ -7,3 +7,6 @@ all:
 
 clean:
 	rm -r build || true
+
+log: all
+	python3.8 scripts/tcpServer.py 0.0.0.0
