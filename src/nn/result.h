@@ -19,6 +19,11 @@ struct Result
     }
 
     u32 value;
+
+    inline bool operator==(int other) const { return (int) value == other; }
+    inline bool operator!=(int other) const { return (int) value != other; }
+    inline operator u32&() { return value; }
+    inline operator u32() const { return value; }
 };
 
 }

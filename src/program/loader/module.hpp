@@ -1,5 +1,0 @@
-namespace smol {
-    class Module {
-
-    };
-}

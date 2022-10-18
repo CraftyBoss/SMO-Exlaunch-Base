@@ -29,14 +29,14 @@ namespace agl
             void printInfo() const;
             void copyFrom(NVNtexture const &);
 
-            u16 _0;
-            u16 _2;
+            u16 mWidth;
+            u16 mHeight;
             u16 _4;
             u16 _6;
             u8 _8;
             u8 _9;
             u16 _A;
-            u8 _C[0x1A-0xC];
+            u8 xC[0x1A-0xC];
             u8 _1A;
             u8 _1B;
             u32 _1C;
