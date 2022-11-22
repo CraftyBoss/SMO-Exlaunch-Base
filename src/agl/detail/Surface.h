@@ -29,8 +29,8 @@ namespace agl
             void printInfo() const;
             void copyFrom(NVNtexture const &);
 
-            u16 _0;
-            u16 _2;
+            u16 mWidth;
+            u16 mHeight;
             u16 _4;
             u16 _6;
             u8 _8;

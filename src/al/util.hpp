@@ -469,6 +469,7 @@ namespace al
     bool isInDeathArea(al::LiveActor const *);
 
     void calcCameraUpDir(sead::Vector3f *, al::IUseCamera const*, int);
+    void calcCameraLookDir(sead::Vector3f *, al::IUseCamera const*, int);
 
     const unsigned char *tryGetBymlFromArcName(sead::SafeStringBase<char> const &, sead::SafeStringBase<char> const &);
 

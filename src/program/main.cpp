@@ -242,7 +242,7 @@ extern "C" void exl_main(void* x0, void* x1) {
     envSetOwnProcessHandle(exl::util::proc_handle::Get());
     exl::hook::Initialize();
 
-    R_ABORT_UNLESS(Logger::instance().init("10.0.0.224", 3080).value);
+    R_ABORT_UNLESS(Logger::instance().init(LOGGER_IP, 3080).value);
 
     runCodePatches();
 

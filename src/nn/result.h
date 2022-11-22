@@ -20,12 +20,10 @@ struct Result
 
     u32 value;
 
-    bool operator==(int other) const {
-        return (int) value == other;
-    }
-    bool operator!=(int other) const {
-        return (int) value != other;
-    }
+    inline bool operator==(int other) const { return (int) value == other; }
+    inline bool operator!=(int other) const { return (int) value != other; }
+    inline operator u32&() { return value; }
+    inline operator u32() const { return value; }
 };
 
 }

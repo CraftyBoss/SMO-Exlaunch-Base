@@ -58,7 +58,7 @@ typedef __builtin_va_list va_list;
 
 #define RAD(deg) (deg * (M_PI / 180)) // converts Degrees to Radians
 #define DEG(rad) (rad * (180 / M_PI)) // converts Radians to Degrees
-#define BTOC(bool) (bool ? "True" : "False") // converts boolean to true/false char
+#define BTOC(bool) (bool ? "true" : "false") // converts boolean to true/false char
 #define ACNT(arr) (sizeof(arr) / sizeof(arr[0]))  // returns size of inputted array
 // used to convert macro values to strings
 #define STRINGIFY(x) #x
