@@ -18,25 +18,24 @@ sock.bind(server_address)
 # Listen for incoming connections
 sock.listen(1)
 
-# while True:
+while True:
 # Wait for a connection
-print('Waiting for Switch to Connect...')
-connection, client_address = sock.accept()
-try:
-    print(f'Switch Connected! IP: {client_address[0]} Port: {client_address[1]}')
-    while True:
-        data = connection.recv(1024)
+    print('Waiting for Switch to Connect...')
+    connection, client_address = sock.accept()
+    try:
+        print(f'Switch Connected! IP: {client_address[0]} Port: {client_address[1]}')
+        while True:
+            data = connection.recv(1024)
 
-        if data:
-            print(data.decode("utf-8"), end='', flush=True)
-        else:
-            print(f'Connection Terminated.')
-            break
+            if data:
+                print(data.decode("utf-8"), end='', flush=True)
+            else:
+                print(f'Connection Terminated.')
+                break
 
-except ConnectionResetError:
-    print("Connection reset")
+    except ConnectionResetError:
+        print("Connection reset")
 
-finally:
-    # Clean up the connection
-    connection.close()
-
+    finally:
+        # Clean up the connection
+        connection.close()

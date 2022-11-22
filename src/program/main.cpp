@@ -100,23 +100,6 @@ HOOK_DEFINE_TRAMPOLINE(ControlHook) {
     }
 };
 
-HOOK_DEFINE_TRAMPOLINE(DisableUserExceptionHandler) {
-    static void Callback(void (*)(nn::os::UserExceptionInfo*), void*, u64, nn::os::UserExceptionInfo*) {
-        Logger::log("this is so cool\n");
-
-        static char ALIGNED(0x1000) exceptionStack[0x6000];
-        static nn::os::UserExceptionInfo exceptionInfo;
-        Orig([](nn::os::UserExceptionInfo* exceptionInfo){
-            Logger::log("Among us!!!!!! %p\n", exceptionInfo->PC.x);
-            for (auto& CpuRegister : exceptionInfo->CpuRegisters)
-            {
-                Logger::log("my nuts! %p\n", CpuRegister.x);
-            }
-        }, exceptionStack, sizeof(exceptionStack), &exceptionInfo);
-
-    }
-};
-
 HOOK_DEFINE_REPLACE(ReplaceSeadPrint) {
     static void Callback(const char* format, ...) {
         va_list args;
@@ -145,7 +128,7 @@ HOOK_DEFINE_TRAMPOLINE(RedirectFileDevice) {
         sead::FixedSafeString<32> driveName;
         sead::FileDevice* device;
 
-        Logger::log("Path: %s\n", path.cstr());
+        // Logger::log("Path: %s\n", path.cstr());
 
         if (!sead::Path::getDriveName(&driveName, path))
         {
@@ -163,7 +146,7 @@ HOOK_DEFINE_TRAMPOLINE(RedirectFileDevice) {
                 }
 
             }else {
-                Logger::log("Found Replacement File on SD! Path: %s\n", path.cstr());
+                Logger::log("Found File on SD! Path: %s\n", path.cstr());
             }
             
         }
@@ -183,13 +166,13 @@ HOOK_DEFINE_TRAMPOLINE(RedirectFileDevice) {
 HOOK_DEFINE_TRAMPOLINE(FileLoaderLoadArc) {
     static sead::ArchiveRes *Callback(al::FileLoader *thisPtr, sead::SafeString &path, const char *ext, sead::FileDevice *device) {
 
-        Logger::log("Path: %s\n", path.cstr());
+        // Logger::log("Path: %s\n", path.cstr());
 
         sead::FileDevice* sdFileDevice = sead::FileDeviceMgr::instance()->findDevice("sd");
 
         if(sdFileDevice && sdFileDevice->isExistFile(path)) {
 
-            Logger::log("Found Replacement File on SD! Path: %s\n", path.cstr());
+            Logger::log("Found File on SD! Path: %s\n", path.cstr());
 
             device = sdFileDevice;
         }
