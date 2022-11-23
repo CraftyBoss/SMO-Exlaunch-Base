@@ -5,9 +5,8 @@
 
 #pragma once
 
-#include "sead/disposer.h"
-#include "sead/heap.h"
-#include "sead/hostio.h"
+#include <heap/seadHeap.h>
+#include <hostio/seadHostIONode.h>
 
 namespace agl
 {
@@ -31,8 +30,9 @@ namespace agl
         void setUp();
         void setUp_(bool);
 
-        u64 _20;
         agl::ResBinaryShaderArchive* mBinaryShaderArchive; // _28
-        agl::ResShaderArchive* mResShaderArchive; // _30
+        agl::ResShaderArchive* mResShaderArchive;          // _30
+        u8 _38[0xB8-0x30];
+        
     };
 };

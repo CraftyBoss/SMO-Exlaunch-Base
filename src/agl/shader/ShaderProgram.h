@@ -6,8 +6,8 @@
 #pragma once
 
 #include "agl/DisplayList.h"
-#include "sead/heap.h"
-#include "sead/string.h"
+#include <heap/seadHeap.h>
+#include <prim/seadSafeString.h>
 #include "Shader.h"
 
 namespace agl
@@ -38,6 +38,7 @@ namespace agl
 
         u64* _8;
         agl::DisplayList mShaderDisplayList; // _10
+        u64 _270;
         u32 _278;
         u32 _27C;
         u64 _280;
@@ -64,4 +65,4 @@ namespace agl
         u64 _418;
         u32 _420;
     };
-};
+}

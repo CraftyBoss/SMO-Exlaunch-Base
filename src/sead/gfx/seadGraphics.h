@@ -9,6 +9,7 @@ namespace sead {
 
     class Graphics
     {
+    SEAD_SINGLETON_DISPOSER(Graphics)
     public:
         enum DevicePosture
         {
@@ -198,6 +199,9 @@ namespace sead {
             cPolygonMode_Fill  = 0x00000002
 #endif // switch
         };
+#ifdef SWITCH
+        NVNdevice* mGfxDevice; // _20
+#endif
     };
 
 } // namespace sead

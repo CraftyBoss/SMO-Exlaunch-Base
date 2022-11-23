@@ -35,3 +35,6 @@ build/
 *.out
 *.app
 .idea/
+
+# specific files
+compile_commands.json
