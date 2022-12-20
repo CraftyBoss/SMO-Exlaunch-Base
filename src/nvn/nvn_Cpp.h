@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// todo: figure out what m_value gets set to by the empty constructor
+// todo: verify ENUM and BITS' void ctor funcitonality
 #define NVN_ENUM(CLASS)                                                                            \
 private:                                                                                           \
     Enum m_value;                                                                                  \
@@ -853,16 +853,16 @@ struct DebugCallbackSeverity {
 
 struct MemoryPoolFlags {
     enum Enum {
-        CPU_NO_ACCESS = 1,               // b: 0000 0000 0001
-        CPU_UNCACHED = 2,                // b: 0000 0000 0010
-        CPU_CACHED = 4,                  // b: 0000 0000 0100
-        GPU_NO_ACCESS = 8,               // b: 0000 0000 1000
-        GPU_UNCACHED = 16,               // b: 0000 0001 0000
-        GPU_CACHED = 32,                 // b: 0000 0010 0000
-        SHADER_CODE = 64,                // b: 0000 0100 0000
-        COMPRESSIBLE = 128,              // b: 0000 1000 0000
-        PHYSICAL = 256,                  // b: 0001 0000 0000
-        VIRTUAL = 512,                   // b: 0010 0000 0000
+        CPU_NO_ACCESS = 1,
+        CPU_UNCACHED = 2,
+        CPU_CACHED = 4,
+        GPU_NO_ACCESS = 8,
+        GPU_UNCACHED = 16,
+        GPU_CACHED = 32,
+        SHADER_CODE = 64,
+        COMPRESSIBLE = 128,
+        PHYSICAL = 256,
+        VIRTUAL = 512,
         NVN_MEMORY_POOL_FLAGS_LARGE = -1
     };
 
@@ -1122,7 +1122,7 @@ struct BufferRange {
 typedef void (*GenericFuncPtrFunc)(void);
 typedef void (*DebugCallbackFunc)(DebugCallbackSource::Enum, DebugCallbackType::Enum, int,
                                   DebugCallbackSeverity::Enum, const char*, void*);
-typedef void (*CommandBufferMemoryCallbackFunc)(struct CommandBuffer*, CommandBufferMemoryEvent::Enum,
+typedef void (*CommandBufferMemoryCallbackFunc)(class CommandBuffer*, CommandBufferMemoryEvent::Enum,
                                                 size_t, void*);
 typedef void (*WalkDebugDatabaseCallbackFunc)(void*, void*);
 
@@ -1226,10 +1226,10 @@ public:
     void SubmitCommands(int, const CommandHandle*);
     void Flush();
     void Finish();
-    void PresentTexture(struct Window*, int);
-    QueueAcquireTextureResult AcquireTexture(struct Window*, int*);
-    void FenceSync(struct Sync*, SyncCondition, SyncFlagBits);
-    NVNboolean WaitSync(const struct Sync*);
+    void PresentTexture(class Window*, int);
+    QueueAcquireTextureResult AcquireTexture(Window*, int*);
+    void FenceSync(class Sync*, SyncCondition, SyncFlagBits);
+    NVNboolean WaitSync(const class Sync*);
 };
 
 class CommandBuffer {
@@ -1247,7 +1247,7 @@ public:
     void SetDebugLabel(const char*);
     void SetMemoryCallback(CommandBufferMemoryCallbackFunc);
     void SetMemoryCallbackData(void*);
-    void AddCommandMemory(const struct MemoryPool*, ptrdiff_t, size_t);
+    void AddCommandMemory(const class MemoryPool*, ptrdiff_t, size_t);
     void AddControlMemory(void*, size_t);
     size_t GetCommandMemorySize() const;
     size_t GetCommandMemoryUsed() const;
@@ -1259,15 +1259,15 @@ public:
     CommandHandle EndRecording();
     void CallCommands(int, const CommandHandle*);
     void CopyCommands(int, const CommandHandle*);
-    void BindBlendState(const struct BlendState*);
-    void BindChannelMaskState(const struct ChannelMaskState*);
-    void BindColorState(const struct ColorState*);
-    void BindMultisampleState(const struct MultisampleState*);
-    void BindPolygonState(const struct PolygonState*);
-    void BindDepthStencilState(const struct DepthStencilState*);
-    void BindVertexAttribState(int, const struct VertexAttribState*);
-    void BindVertexStreamState(int, const struct VertexStreamState*);
-    void BindProgram(const struct Program*, ShaderStageBits);
+    void BindBlendState(const class BlendState*);
+    void BindChannelMaskState(const class ChannelMaskState*);
+    void BindColorState(const class ColorState*);
+    void BindMultisampleState(const class MultisampleState*);
+    void BindPolygonState(const class PolygonState*);
+    void BindDepthStencilState(const class DepthStencilState*);
+    void BindVertexAttribState(int, const class VertexAttribState*);
+    void BindVertexStreamState(int, const class VertexStreamState*);
+    void BindProgram(const class Program*, ShaderStageBits);
     void BindVertexBuffer(int, BufferAddress, size_t);
     void BindVertexBuffers(int, int, const BufferRange*);
     void BindUniformBuffer(ShaderStage, int, BufferAddress, size_t);
@@ -1335,19 +1335,19 @@ public:
     void SetConservativeRasterEnable(NVNboolean);
     void SetConservativeRasterDilate(float);
     void SetSubpixelPrecisionBias(int, int);
-    void CopyBufferToTexture(BufferAddress, const struct Texture*, const struct TextureView*, const CopyRegion*,
+    void CopyBufferToTexture(BufferAddress, const class Texture*, const class TextureView*, const CopyRegion*,
                              CopyFlags);
-    void CopyTextureToBuffer(const struct Texture*, const struct TextureView*, const CopyRegion*, BufferAddress,
+    void CopyTextureToBuffer(const Texture*, const TextureView*, const CopyRegion*, BufferAddress,
                              CopyFlags);
-    void CopyTextureToTexture(const struct Texture*, const struct TextureView*, const CopyRegion*, const struct Texture*,
-                              const struct TextureView*, const CopyRegion*, CopyFlags);
+    void CopyTextureToTexture(const Texture*, const TextureView*, const CopyRegion*, const Texture*,
+                              const TextureView*, const CopyRegion*, CopyFlags);
     void CopyBufferToBuffer(BufferAddress, BufferAddress, size_t, CopyFlags);
     void ClearBuffer(BufferAddress, size_t, uint32_t);
-    void ClearTexture(const struct Texture*, const struct TextureView*, const CopyRegion*, const float*,
+    void ClearTexture(const Texture*, const TextureView*, const CopyRegion*, const float*,
                       ClearColorMask);
-    void ClearTexturei(const struct Texture*, const struct TextureView*, const CopyRegion*, const int*,
+    void ClearTexturei(const Texture*, const TextureView*, const CopyRegion*, const int*,
                        ClearColorMask);
-    void ClearTextureui(const struct Texture*, const struct TextureView*, const CopyRegion*, const uint32_t*,
+    void ClearTextureui(const Texture*, const TextureView*, const CopyRegion*, const uint32_t*,
                         ClearColorMask);
     void UpdateUniformBuffer(BufferAddress, size_t, ptrdiff_t, size_t, const void*);
     void ReportCounter(CounterType, BufferAddress);
@@ -1355,22 +1355,22 @@ public:
     void ReportValue(uint32_t, BufferAddress);
     void SetRenderEnable(NVNboolean);
     void SetRenderEnableConditional(ConditionalRenderMode, BufferAddress);
-    void SetRenderTargets(int, const struct Texture* const*, const struct TextureView* const*, const struct Texture*,
-                          const struct TextureView*);
+    void SetRenderTargets(int, const Texture* const*, const TextureView* const*, const Texture*,
+                          const TextureView*);
     void DiscardColor(int);
     void DiscardDepthStencil();
-    void Downsample(const struct Texture*, const struct Texture*);
-    void TiledDownsample(const struct Texture*, const struct Texture*);
-    void DownsampleTextureView(const struct Texture*, const struct TextureView*, const struct Texture*,
-                               const struct TextureView*);
-    void TiledDownsampleTextureView(const struct Texture*, const struct TextureView*, const struct Texture*,
-                                    const struct TextureView*);
+    void Downsample(const Texture*, const Texture*);
+    void TiledDownsample(const Texture*, const Texture*);
+    void DownsampleTextureView(const Texture*, const TextureView*, const Texture*,
+                               const TextureView*);
+    void TiledDownsampleTextureView(const Texture*, const TextureView*, const Texture*,
+                                    const TextureView*);
     void Barrier(BarrierBits);
-    void WaitSync(const struct Sync*);
-    void FenceSync(struct Sync*, SyncCondition, SyncFlagBits);
-    void SetTexturePool(const struct TexturePool*);
-    void SetSamplerPool(const struct SamplerPool*);
-    void SetShaderScratchMemory(const struct MemoryPool*, ptrdiff_t, size_t);
+    void WaitSync(const Sync*);
+    void FenceSync(Sync*, SyncCondition, SyncFlagBits);
+    void SetTexturePool(const class TexturePool*);
+    void SetSamplerPool(const class SamplerPool*);
+    void SetShaderScratchMemory(const MemoryPool*, ptrdiff_t, size_t);
     void SaveZCullData(BufferAddress, size_t);
     void RestoreZCullData(BufferAddress, size_t);
     void SetCopyRowStride(ptrdiff_t);
@@ -1378,7 +1378,7 @@ public:
     ptrdiff_t GetCopyRowStride() const;
     ptrdiff_t GetCopyImageStride() const;
     void DrawTexture(TextureHandle, const DrawTextureRegion*, const DrawTextureRegion*);
-    void SetProgramSubroutines(struct Program*, ShaderStage, const int, const int, const int*);
+    void SetProgramSubroutines(Program*, ShaderStage, const int, const int, const int*);
     void BindCoverageModulationTable(const float*);
     void ResolveDepthBuffer();
     void SetColorReductionEnable(NVNboolean);
@@ -1394,8 +1394,8 @@ public:
     CommandBufferMemoryCallbackFunc GetMemoryCallback() const;
     void* GetMemoryCallbackData() const;
     NVNboolean IsRecording() const;
-    void WaitEvent(const struct Event*, EventWaitMode, uint32_t);
-    void SignalEvent(const struct Event*, EventSignalMode, EventSignalLocation, EventSignalFlags,
+    void WaitEvent(const class Event*, EventWaitMode, uint32_t);
+    void SignalEvent(const Event*, EventSignalMode, EventSignalLocation, EventSignalFlags,
                      uint32_t);
     void SetStencilCullCriteria(StencilFunc, int, int);
 };
@@ -1627,8 +1627,8 @@ public:
     NVNboolean Initialize(const MemoryPool*, ptrdiff_t, int);
     void SetDebugLabel(const char*);
     void Finalize();
-    void RegisterSampler(int, const struct Sampler*) const;
-    void RegisterSamplerBuilder(int, const struct SamplerBuilder*) const;
+    void RegisterSampler(int, const class Sampler*) const;
+    void RegisterSamplerBuilder(int, const class SamplerBuilder*) const;
     const MemoryPool* GetMemoryPool() const;
     ptrdiff_t GetMemoryOffset() const;
     int GetSize() const;
@@ -1681,7 +1681,7 @@ protected:
 public:
     Texture() {}
 
-    NVNboolean Initialize(const struct TextureBuilder*);
+    NVNboolean Initialize(const class TextureBuilder*);
     size_t GetZCullStorageSize() const;
     void Finalize();
     void SetDebugLabel(const char*);
@@ -1878,10 +1878,10 @@ protected:
 public:
     Window() {}
 
-    NVNboolean Initialize(const struct WindowBuilder*);
+    NVNboolean Initialize(const class WindowBuilder*);
     void Finalize();
     void SetDebugLabel(const char*);
-    WindowAcquireTextureResult AcquireTexture(struct Sync*, int*);
+    WindowAcquireTextureResult AcquireTexture(Sync*, int*);
     NVNnativeWindow GetNativeWindow() const;
     int GetPresentInterval() const;
     void SetPresentInterval(int);

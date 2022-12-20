@@ -8,7 +8,10 @@
 extern "C" {
 
 extern void *malloc(size_t size);
+extern void *realloc(void *ptr, size_t new_size);
 extern void *aligned_alloc( size_t alignment, size_t size );
+
+extern void free(void *ptr);
 
 };
 

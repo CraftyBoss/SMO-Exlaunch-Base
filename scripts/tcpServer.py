@@ -19,7 +19,7 @@ sock.bind(server_address)
 sock.listen(1)
 
 while True:
-# Wait for a connection
+    # Wait for a connection
     print('Waiting for Switch to Connect...')
     connection, client_address = sock.accept()
     try:
@@ -28,7 +28,10 @@ while True:
             data = connection.recv(1024)
 
             if data:
-                print(data.decode("utf-8"), end='', flush=True)
+                try:
+                    print(data.decode("utf-8"), end='', flush=True)
+                except:
+                    print("Failed to decode data!\n")
             else:
                 print(f'Connection Terminated.')
                 break

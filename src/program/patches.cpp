@@ -21,7 +21,13 @@ void stubSocketInit() {
     p.WriteInst(inst::Nop());
 }
 
+void enableDebugNvn() {
+    patch::CodePatcher p(0x7312CC);
+    p.WriteInst(inst::Nop());
+}
+
 void runCodePatches() {
     costumeRoomPatches();
     stubSocketInit();
+    enableDebugNvn();
 }

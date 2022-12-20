@@ -118,12 +118,6 @@ public:
 #endif
 };
 
-inline void* Heap::tryRealloc(void*, size_t, s32)
-{
-    SEAD_ASSERT_MSG(false, "tryRealloc is not implement.");
-    return nullptr;
-}
-
 }  // namespace sead
 
 #endif  // SEAD_HEAP_H_

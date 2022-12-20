@@ -24,4 +24,5 @@ class Logger {
     private:
         LoggerState mState;
         int mSocketFd;
+        bool mIsEmulator;
 };

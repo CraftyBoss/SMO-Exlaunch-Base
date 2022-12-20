@@ -1,7 +1,6 @@
 #include "lib.hpp"
 #include "imgui_backend/imgui_impl_nvn.hpp"
 #include "patches.hpp"
-#include "nn/err.h"
 #include "nvn/nvn_CppFuncPtrImpl.h"
 #include "logger/Logger.hpp"
 #include "fs.h"
@@ -13,9 +12,7 @@
 #include <filedevice/seadFileDeviceMgr.h>
 #include <filedevice/seadPath.h>
 #include <resource/seadArchiveRes.h>
-#include <framework/seadFramework.h>
 #include <heap/seadHeapMgr.h>
-#include <heap/seadExpHeap.h>
 #include <devenv/seadDebugFontMgrNvn.h>
 #include <gfx/seadTextWriter.h>
 #include <gfx/seadViewport.h>
@@ -30,26 +27,38 @@
 #include "al/util.hpp"
 #include "al/fs/FileLoader.h"
 
-#include "agl/detail/ShaderHolder.h"
+#include "agl/utl.h"
+#include "imgui_nvn.h"
 
 static const char *DBG_FONT_PATH   = "DebugData/Font/nvn_font_jis1.ntx";
 static const char *DBG_SHADER_PATH = "DebugData/Font/nvn_font_shader_jis1.bin";
 static const char *DBG_TBL_PATH    = "DebugData/Font/nvn_font_jis1_tbl.bin";
 
+#define IMGUI_ENABLED true
+
 sead::TextWriter *gTextWriter;
 
-nvn::Device* nvnDevice;
-nvn::Queue* nvnQueue;
-nvn::CommandBuffer* nvnCmdBuf;
+void drawBackground(agl::DrawContext *context) {
+    sead::Vector3<float> p1(-1, .3, 0); // top left
+    sead::Vector3<float> p2(-.2, .3, 0); // top right
+    sead::Vector3<float> p3(-1, -1, 0); // bottom left
+    sead::Vector3<float> p4(-.2, -1, 0); // bottom right
+    sead::Color4f c(.1, .1, .1, .9);
+
+    agl::utl::DevTools::beginDrawImm(context, sead::Matrix34<float>::ident, sead::Matrix44<float>::ident);
+    agl::utl::DevTools::drawTriangleImm(context, p1, p2, p3, c);
+    agl::utl::DevTools::drawTriangleImm(context, p3, p4, p2, c);
+
+}
 
 void graNoclipCode(al::LiveActor *player) {
 
     static bool isFirst = true;
 
-    float speed = 25.0f;
-    float speedMax = 150.0f;
-    float vspeed = 20.0f;
-    float speedGain = 0.0f;
+    static float speed = 25.0f;
+    static float speedMax = 150.0f;
+    static float vspeed = 20.0f;
+    static float speedGain = 0.0f;
 
     sead::Vector3f *playerPos = al::getTransPtr(player);
     sead::Vector3f *cameraPos = al::getCameraPos(player, 0);
@@ -99,36 +108,6 @@ void controlLol(StageScene* scene) {
     if(isNoclip) {
         graNoclipCode(actor);
     }
-}
-
-constexpr int getShaderIndex(const char *shaderName) {
-    for (size_t i = 0; i < ACNT(agl::detail::programs); i++)
-    {
-        if(al::isEqualString(shaderName, agl::detail::programs[i].mProgramName)) {
-            return i;
-        }
-    }
-}
-
-NOINLINE void* getFragmentShaderFromAgl(const char *shaderName) {
-
-    agl::ShaderProgram *shader = agl::detail::ShaderHolder::instance()->mShaders(getShaderIndex(shaderName));
-
-    if(shader) {
-        return shader->mFragmentShader.mShaderBinary;
-    }
-
-    return nullptr;
-}
-
-NOINLINE void *getVertexShaderFromAgl(const char *shaderName) {
-    agl::ShaderProgram *shader = agl::detail::ShaderHolder::instance()->mShaders(getShaderIndex(shaderName));
-
-    if(shader) {
-        return shader->mVertexShader.mShaderBinary;
-    }
-
-    return nullptr;
 }
 
 HOOK_DEFINE_TRAMPOLINE(ControlHook) {
@@ -238,10 +217,10 @@ HOOK_DEFINE_TRAMPOLINE(GameSystemInit) {
         sead::DebugFontMgrJis1Nvn::createInstance(curHeap);
 
         if (al::isExistFile(DBG_SHADER_PATH) && al::isExistFile(DBG_FONT_PATH) && al::isExistFile(DBG_TBL_PATH)) {
-            sead::DebugFontMgrJis1Nvn::sInstance->initialize(curHeap, DBG_SHADER_PATH, DBG_FONT_PATH, DBG_TBL_PATH, 0x100000);
+            sead::DebugFontMgrJis1Nvn::instance()->initialize(curHeap, DBG_SHADER_PATH, DBG_FONT_PATH, DBG_TBL_PATH, 0x100000);
         }
 
-        sead::TextWriter::setDefaultFont(sead::DebugFontMgrJis1Nvn::sInstance);
+        sead::TextWriter::setDefaultFont(sead::DebugFontMgrJis1Nvn::instance());
 
         al::GameDrawInfo* drawInfo = Application::instance()->mDrawInfo;
 
@@ -256,28 +235,9 @@ HOOK_DEFINE_TRAMPOLINE(GameSystemInit) {
 
         gTextWriter->mColor = sead::Color4f(1.f, 1.f, 1.f, 0.8f);
 
-        if(nvnDevice && nvnQueue) {
-
-            Logger::log("Creating ImGui.\n");
-
-            IMGUI_CHECKVERSION();
-            ImGui::CreateContext();
-            ImGuiIO& io = ImGui::GetIO(); (void)io;
-
-            void *vertShader = getVertexShaderFromAgl("draw_imm");
-            void *fragShader = getFragmentShaderFromAgl("draw_imm");
-
-            if(vertShader && fragShader) {
-                Logger::log("Accessed Vertex and Fragment Shaders for draw_imm!\n");
-            }
-
-            ImGui::StyleColorsDark();
-
-            ImguiNvnBackend::InitBackend(nvnDevice, nvnQueue, nvnCmdBuf);
-
-        }else {
-            Logger::log("Unable to create ImGui Renderer!\n");
-        }
+#if IMGUI_ENABLED
+        nvnImGui::InitImGui();
+#endif
 
         Orig(thisPtr);
 
@@ -295,67 +255,7 @@ HOOK_DEFINE_TRAMPOLINE(DrawDebugMenu) {
         gTextWriter->printf("FPS: %d\n", static_cast<int>(round(Application::instance()->mFramework->calcFps())));
 
         gTextWriter->endDraw();
-    }
-};
 
-nvn::DeviceInitializeFunc tempDeviceInitFuncPtr;
-nvn::DeviceGetProcAddressFunc tempGetProcAddressFuncPtr;
-nvn::QueueInitializeFunc tempQueueInitFuncPtr;
-nvn::CommandBufferInitializeFunc tempBufferInitFuncPtr;
-
-NVNboolean deviceInit(nvn::Device *device, const nvn::DeviceBuilder *builder) {
-    NVNboolean result = tempDeviceInitFuncPtr(device, builder);
-    nvnDevice = device;
-    return result;
-}
-
-NVNboolean queueInit(nvn::Queue *queue, const nvn::QueueBuilder *builder) {
-    NVNboolean result = tempQueueInitFuncPtr(queue, builder);
-    nvnQueue = queue;
-    return result;
-}
-
-NVNboolean cmdBufInit(nvn::CommandBuffer *buffer, nvn::Device *device) {
-    NVNboolean result = tempBufferInitFuncPtr(buffer, device);
-    nvnCmdBuf = buffer;
-    return result;
-}
-
-nvn::GenericFuncPtrFunc getProc(nvn::Device *device, const char *procName) {
-
-    nvn::GenericFuncPtrFunc ptr = tempGetProcAddressFuncPtr(nvnDevice, procName);
-
-    if(strcmp(procName, "nvnQueueInitialize") == 0) {
-        Logger::log("Overrriding Proc: %s\n", procName);
-        tempQueueInitFuncPtr = (nvn::QueueInitializeFunc)ptr;
-        return (nvn::GenericFuncPtrFunc)&queueInit;
-    }else if(strcmp(procName, "nvnCommandBufferInitialize") == 0) {
-        Logger::log("Overrriding Proc: %s\n", procName);
-        tempBufferInitFuncPtr = (nvn::CommandBufferInitializeFunc)ptr;
-        return (nvn::GenericFuncPtrFunc)&cmdBufInit;
-    } else if (device != nullptr) {
-        Logger::log("Getting Proc: %s\n", procName);
-    }
-
-    return ptr;
-}
-
-HOOK_DEFINE_TRAMPOLINE(NvnBootstrapHook) {
-    static void *Callback(const char *funcName) {
-
-        void *result = Orig(funcName);
-
-        Logger::log("Getting Nvn Func: %s\n", funcName);
-
-        if(strcmp(funcName, "nvnDeviceInitialize") == 0) {
-            tempDeviceInitFuncPtr = (nvn::DeviceInitializeFunc)result;
-            return (void*)&deviceInit;
-        }if(strcmp(funcName, "nvnDeviceGetProcAddress") == 0) {
-            tempGetProcAddressFuncPtr = (nvn::DeviceGetProcAddressFunc)result;
-            return (void*)&getProc;
-        }
-
-        return result;
     }
 };
 
@@ -385,11 +285,15 @@ extern "C" void exl_main(void* x0, void* x1) {
 
     DrawDebugMenu::InstallAtOffset(0x50F1D8);
 
+    // General Hooks
+
     ControlHook::InstallAtSymbol("_ZN10StageScene7controlEv");
 
     // ImGui Hooks
+#if IMGUI_ENABLED
+    nvnImGui::InstallHooks();
+#endif
 
-    NvnBootstrapHook::InstallAtSymbol("nvnBootstrapLoader");
 }
 
 extern "C" NORETURN void exl_exception_entry() {

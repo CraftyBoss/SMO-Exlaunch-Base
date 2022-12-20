@@ -71,17 +71,6 @@ namespace exl::hook::nx64 {
         }
     }
 
-    
-    template<typename Func> requires RealFunction<Func>
-    Func HookFunc(uintptr_t hook, uintptr_t callback, bool do_trampoline = false) {
-        return HookFunc(reinterpret_cast<Func>(hook), reinterpret_cast<Func>(callback), do_trampoline);
-    }
-
-    template<typename Func> requires RealFunction<Func>
-    Func HookFunc(uintptr_t hook, Func callback, bool do_trampoline = false) {
-        return HookFunc(reinterpret_cast<Func>(hook), callback, do_trampoline);
-    }
-
     template<typename Func> requires RealFunction<Func> || std::is_member_function_pointer_v<Func>
     Func HookFunc(Func hook, Func callback, bool do_trampoline = false) {
 
@@ -100,6 +89,16 @@ namespace exl::hook::nx64 {
         memcpy(&ret, &trampoline, sizeof(trampoline));
 
         return ret;
+    }
+
+    template<typename Func> requires RealFunction<Func>
+    Func HookFunc(uintptr_t hook, Func callback, bool do_trampoline = false) {
+        return HookFunc(reinterpret_cast<Func>(hook), callback, do_trampoline);
+    }
+    
+    template<typename Func> requires RealFunction<Func>
+    Func HookFunc(uintptr_t hook, uintptr_t callback, bool do_trampoline = false) {
+        return HookFunc(reinterpret_cast<Func>(hook), reinterpret_cast<Func>(callback), do_trampoline);
     }
 
     template<typename Func1, typename Func2> 

@@ -4,6 +4,8 @@
 #include "util.h"
 #include "lib.hpp"
 
+#define ISEMU false
+
 char socketPool[0x600000+0x20000] __attribute__((aligned(0x1000)));
 
 Logger& Logger::instance() { 
@@ -17,6 +19,13 @@ nn::Result Logger::init(const char *ip, u16 port) {
 
     if (mState != LoggerState::UNINITIALIZED)
         return -1;
+
+    mIsEmulator = ISEMU;
+
+    if(mIsEmulator) {
+        mState = LoggerState::CONNECTED;
+        return 0;
+    }
 
     nn::nifm::Initialize();
 
@@ -55,7 +64,7 @@ nn::Result Logger::init(const char *ip, u16 port) {
 
 void Logger::log(const char *fmt, ...) {
 
-    if(instance().mState != LoggerState::CONNECTED)
+    if(instance().mState != LoggerState::CONNECTED && !ISEMU)
         return;
 
     va_list args;
@@ -64,7 +73,12 @@ void Logger::log(const char *fmt, ...) {
     char buffer[0x500] = {};
 
     if(nn::util::VSNPrintf(buffer, sizeof(buffer), fmt, args) > 0) {
-        nn::socket::Send(instance().mSocketFd, buffer, strlen(buffer), 0);
+
+        if(ISEMU) {
+            svcOutputDebugString(buffer, strlen(buffer));
+        }else {
+            nn::socket::Send(instance().mSocketFd, buffer, strlen(buffer), 0);
+        }
     }
 
     va_end(args);

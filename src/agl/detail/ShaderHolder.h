@@ -251,7 +251,7 @@ namespace agl
             
             sead::PtrArray<agl::ShaderProgram> mShaders; // _28
 
-        private:
+        // private:
             agl::ShaderProgram* mShaderBuf[ACNT(programs)];
             agl::ShaderProgramArchive mArcCommon;
             agl::ShaderProgramArchive mArcTechnique;

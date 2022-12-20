@@ -7,6 +7,7 @@
 namespace al {
 
 Resource* findOrCreateResource(const sead::SafeString&, const char*);
+void* findOrCreateResourceCategory(sead::SafeString const&,sead::SafeString const&,char const*);
 
 }
 

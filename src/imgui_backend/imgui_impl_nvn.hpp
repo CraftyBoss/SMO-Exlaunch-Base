@@ -1,13 +1,25 @@
 #pragma once
 
+#define IMGUI_USER_CONFIG "imgui_backend/nvn_imgui_config.h"
+
+#include "ImguiShaderCompiler.h"
 #include "imgui.h"
-#include "nvn.h"
 #include "nvn_Cpp.h"
 #include "nvn_CppMethods.h"
+#include "types.h"
+#include "MemoryBuffer.h"
 
 #ifdef __cplusplus
 
 namespace ImguiNvnBackend {
+
+    struct NvnBackendInitInfo {
+        nvn::Device *device;
+        nvn::Queue *queue;
+        nvn::CommandBuffer *cmdBuf;
+        nvn::TexturePool *texPool;
+        nvn::SamplerPool *samplerPool;
+    };
 
     struct NvnBackendData {
 
@@ -16,24 +28,59 @@ namespace ImguiNvnBackend {
         nvn::Device *device;
         nvn::Queue *queue;
         nvn::CommandBuffer *cmdBuf;
+        nvn::TexturePool * texPool;
+        nvn::SamplerPool *samplerPool;
+
+        // builders
+
+        nvn::BufferBuilder bufferBuilder;
+        nvn::MemoryPoolBuilder memPoolBuilder;
+        nvn::TextureBuilder texBuilder;
 
         // shader data
 
         nvn::Program shaderProgram;
-        nvn::MemoryPoolBuilder memPoolBuilder;
-        nvn::MemoryPool bufferPool;
-        
-        nvn::BufferBuilder bufferBuilder;
 
-        nvn::Buffer vertShaderBuffer;
-        nvn::Buffer fragShaderBuffer;
+        MemoryBuffer *shaderMemory;
+        MemoryBuffer *uniformMemory;
+
+        nvn::ShaderData shaderDatas[2]; // 0 - Vert 1 - Frag
+
+        nvn::VertexStreamState streamState;
+        nvn::VertexAttribState attribStates[3];
+
+        // font data
+
+        nvn::MemoryPool fontMemPool;
+
+        int samplerId;
+        nvn::Sampler fontSampler;
+        int textureId;
+        nvn::Texture fontTexture;
+
+        nvn::TextureHandle fontTexHandle;
+
+        // render data
+
+        MemoryBuffer *vtxBuffer;
+        MemoryBuffer *idxBuffer;
+
+        // misc data
+
+        u64 lastTick;
+        bool isInitialized;
+
+        CompiledData compiledData;
+
+        nvn::Program testShader;
     };
 
-    void setupShaders(void* vertShaderBinary, void* fragShaderBinary);
-    void InitBackend(nvn::Device* device, nvn::Queue* queue, nvn::CommandBuffer* cmdBuf);
-    void ShutdownBackend();
+    bool createShaders();
+    bool setupShaders(u8* shaderBinary, ulong binarySize);
+    bool setupFont();
 
-    void LoadShaders();
+    void InitBackend(const NvnBackendInitInfo &initInfo);
+    void ShutdownBackend();
 
     void newFrame();
     void renderDrawData(ImDrawData *drawData);
