@@ -28,7 +28,7 @@ namespace ImguiNvnBackend {
         nvn::Device *device;
         nvn::Queue *queue;
         nvn::CommandBuffer *cmdBuf;
-        nvn::TexturePool * texPool;
+        nvn::TexturePool *texPool;
         nvn::SamplerPool *samplerPool;
 
         // builders
@@ -70,22 +70,34 @@ namespace ImguiNvnBackend {
         u64 lastTick;
         bool isInitialized;
 
-        CompiledData compiledData;
+        CompiledData imguiShaderBinary;
 
+        // test shader data
+
+        bool isUseTestShader = false;
         nvn::Program testShader;
+        nvn::ShaderData testShaderDatas[2]; // 0 - Vert 1 - Frag
+        MemoryBuffer *testShaderBuffer;
+        CompiledData testShaderBinary;
     };
 
     bool createShaders();
-    bool setupShaders(u8* shaderBinary, ulong binarySize);
+
+    bool setupShaders(u8 *shaderBinary, ulong binarySize);
+
     bool setupFont();
 
     void InitBackend(const NvnBackendInitInfo &initInfo);
+
     void ShutdownBackend();
 
+    void updateInput();
+
     void newFrame();
+
     void renderDrawData(ImDrawData *drawData);
 
-    NvnBackendData* getBackendData();
+    NvnBackendData *getBackendData();
 }; // namespace ImguiNvnBackend
 
 #endif

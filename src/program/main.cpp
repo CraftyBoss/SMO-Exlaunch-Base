@@ -29,16 +29,20 @@
 
 #include "agl/utl.h"
 #include "imgui_nvn.h"
+#include "helpers/InputHelper.h"
 
-static const char *DBG_FONT_PATH   = "DebugData/Font/nvn_font_jis1.ntx";
+static const char *DBG_FONT_PATH = "DebugData/Font/nvn_font_jis1.ntx";
 static const char *DBG_SHADER_PATH = "DebugData/Font/nvn_font_shader_jis1.bin";
-static const char *DBG_TBL_PATH    = "DebugData/Font/nvn_font_jis1_tbl.bin";
+static const char *DBG_TBL_PATH = "DebugData/Font/nvn_font_jis1_tbl.bin";
 
 #define IMGUI_ENABLED true
 
 sead::TextWriter *gTextWriter;
 
-void drawBackground(agl::DrawContext *context) {
+void drawBackground() {
+
+    agl::DrawContext *context = Application::instance()->mDrawInfo->mDrawContext;
+
     sead::Vector3<float> p1(-1, .3, 0); // top left
     sead::Vector3<float> p2(-.2, .3, 0); // top right
     sead::Vector3<float> p3(-1, -1, 0); // bottom left
@@ -48,7 +52,6 @@ void drawBackground(agl::DrawContext *context) {
     agl::utl::DevTools::beginDrawImm(context, sead::Matrix34<float>::ident, sead::Matrix44<float>::ident);
     agl::utl::DevTools::drawTriangleImm(context, p1, p2, p3, c);
     agl::utl::DevTools::drawTriangleImm(context, p3, p4, p2, c);
-
 }
 
 void graNoclipCode(al::LiveActor *player) {
@@ -72,8 +75,8 @@ void graNoclipCode(al::LiveActor *player) {
     playerPos->y += 1.4553f;
 
     float d = sqrt(al::powerIn(playerPos->x - cameraPos->x, 2) + (al::powerIn(playerPos->z - cameraPos->z, 2)));
-    float vx = ((speed + speedGain)/d)*(playerPos->x - cameraPos->x);
-    float vz = ((speed + speedGain)/d)*(playerPos->z - cameraPos->z);
+    float vx = ((speed + speedGain) / d) * (playerPos->x - cameraPos->x);
+    float vz = ((speed + speedGain) / d) * (playerPos->z - cameraPos->z);
 
     if (!al::isPadHoldZR(-1)) {
         playerPos->x -= leftStick->x * vz;
@@ -87,38 +90,38 @@ void graNoclipCode(al::LiveActor *player) {
         if (speedGain <= 0.0f) speedGain = 0.0f;
         if (speedGain >= speedMax) speedGain = speedMax;
 
-        if (al::isPadHoldZL(-1) || al::isPadHoldA(-1)) playerPos->y -= (vspeed + speedGain/6);
-        if (al::isPadHoldB(-1)) playerPos->y += (vspeed + speedGain/6);
+        if (al::isPadHoldZL(-1) || al::isPadHoldA(-1)) playerPos->y -= (vspeed + speedGain / 6);
+        if (al::isPadHoldB(-1)) playerPos->y += (vspeed + speedGain / 6);
     }
 }
 
-void controlLol(StageScene* scene) {
+void controlLol(StageScene *scene) {
     auto actor = rs::getPlayerActor(scene);
 
     static bool isNoclip = false;
 
-    if(al::isPadTriggerRight(-1)) {
+    if (al::isPadTriggerRight(-1)) {
         isNoclip = !isNoclip;
 
-        if(!isNoclip) {
+        if (!isNoclip) {
             al::onCollide(actor);
         }
     }
 
-    if(isNoclip) {
+    if (isNoclip) {
         graNoclipCode(actor);
     }
 }
 
 HOOK_DEFINE_TRAMPOLINE(ControlHook) {
-    static void Callback(StageScene* scene) {
+    static void Callback(StageScene *scene) {
         controlLol(scene);
         Orig(scene);
     }
 };
 
 HOOK_DEFINE_REPLACE(ReplaceSeadPrint) {
-    static void Callback(const char* format, ...) {
+    static void Callback(const char *format, ...) {
         va_list args;
         va_start(args, format);
         Logger::log(format, args);
@@ -128,7 +131,7 @@ HOOK_DEFINE_REPLACE(ReplaceSeadPrint) {
 
 HOOK_DEFINE_TRAMPOLINE(CreateFileDeviceMgr) {
     static void Callback(sead::FileDeviceMgr *thisPtr) {
-        
+
         Orig(thisPtr);
 
         thisPtr->mMountedSd = nn::fs::MountSdCardForDebug("sd").isSuccess();
@@ -140,34 +143,32 @@ HOOK_DEFINE_TRAMPOLINE(CreateFileDeviceMgr) {
 };
 
 HOOK_DEFINE_TRAMPOLINE(RedirectFileDevice) {
-    static sead::FileDevice *Callback(sead::FileDeviceMgr *thisPtr, sead::SafeString &path, sead::BufferedSafeString *pathNoDrive) {
+    static sead::FileDevice *
+    Callback(sead::FileDeviceMgr *thisPtr, sead::SafeString &path, sead::BufferedSafeString *pathNoDrive) {
 
         sead::FixedSafeString<32> driveName;
-        sead::FileDevice* device;
+        sead::FileDevice *device;
 
         // Logger::log("Path: %s\n", path.cstr());
 
-        if (!sead::Path::getDriveName(&driveName, path))
-        {
-            
+        if (!sead::Path::getDriveName(&driveName, path)) {
+
             device = thisPtr->findDevice("sd");
 
-            if(!(device && device->isExistFile(path))) {
+            if (!(device && device->isExistFile(path))) {
 
                 device = thisPtr->getDefaultFileDevice();
 
-                if (!device)
-                {
+                if (!device) {
                     Logger::log("drive name not found and default file device is null\n");
                     return nullptr;
                 }
 
-            }else {
+            } else {
                 Logger::log("Found File on SD! Path: %s\n", path.cstr());
             }
-            
-        }
-        else
+
+        } else
             device = thisPtr->findDevice(driveName);
 
         if (!device)
@@ -181,13 +182,14 @@ HOOK_DEFINE_TRAMPOLINE(RedirectFileDevice) {
 };
 
 HOOK_DEFINE_TRAMPOLINE(FileLoaderLoadArc) {
-    static sead::ArchiveRes *Callback(al::FileLoader *thisPtr, sead::SafeString &path, const char *ext, sead::FileDevice *device) {
+    static sead::ArchiveRes *
+    Callback(al::FileLoader *thisPtr, sead::SafeString &path, const char *ext, sead::FileDevice *device) {
 
         // Logger::log("Path: %s\n", path.cstr());
 
-        sead::FileDevice* sdFileDevice = sead::FileDeviceMgr::instance()->findDevice("sd");
+        sead::FileDevice *sdFileDevice = sead::FileDeviceMgr::instance()->findDevice("sd");
 
-        if(sdFileDevice && sdFileDevice->isExistFile(path)) {
+        if (sdFileDevice && sdFileDevice->isExistFile(path)) {
 
             Logger::log("Found File on SD! Path: %s\n", path.cstr());
 
@@ -201,9 +203,9 @@ HOOK_DEFINE_TRAMPOLINE(FileLoaderLoadArc) {
 HOOK_DEFINE_TRAMPOLINE(FileLoaderIsExistFile) {
     static bool Callback(al::FileLoader *thisPtr, sead::SafeString &path, sead::FileDevice *device) {
 
-        sead::FileDevice* sdFileDevice = sead::FileDeviceMgr::instance()->findDevice("sd");
+        sead::FileDevice *sdFileDevice = sead::FileDeviceMgr::instance()->findDevice("sd");
 
-        if(sdFileDevice && sdFileDevice->isExistFile(path)) device = sdFileDevice;
+        if (sdFileDevice && sdFileDevice->isExistFile(path)) device = sdFileDevice;
 
         return Orig(thisPtr, path, device);
     }
@@ -212,22 +214,23 @@ HOOK_DEFINE_TRAMPOLINE(FileLoaderIsExistFile) {
 HOOK_DEFINE_TRAMPOLINE(GameSystemInit) {
     static void Callback(GameSystem *thisPtr) {
 
-        sead::Heap* curHeap = sead::HeapMgr::instance()->getCurrentHeap();
+        sead::Heap *curHeap = sead::HeapMgr::instance()->getCurrentHeap();
 
         sead::DebugFontMgrJis1Nvn::createInstance(curHeap);
 
         if (al::isExistFile(DBG_SHADER_PATH) && al::isExistFile(DBG_FONT_PATH) && al::isExistFile(DBG_TBL_PATH)) {
-            sead::DebugFontMgrJis1Nvn::instance()->initialize(curHeap, DBG_SHADER_PATH, DBG_FONT_PATH, DBG_TBL_PATH, 0x100000);
+            sead::DebugFontMgrJis1Nvn::instance()->initialize(curHeap, DBG_SHADER_PATH, DBG_FONT_PATH, DBG_TBL_PATH,
+                                                              0x100000);
         }
 
         sead::TextWriter::setDefaultFont(sead::DebugFontMgrJis1Nvn::instance());
 
-        al::GameDrawInfo* drawInfo = Application::instance()->mDrawInfo;
+        al::GameDrawInfo *drawInfo = Application::instance()->mDrawInfo;
 
         agl::DrawContext *context = drawInfo->mDrawContext;
-        agl::RenderBuffer* renderBuffer = drawInfo->mFirstRenderBuffer;
+        agl::RenderBuffer *renderBuffer = drawInfo->mFirstRenderBuffer;
 
-        sead::Viewport* viewport = new sead::Viewport(*renderBuffer);
+        sead::Viewport *viewport = new sead::Viewport(*renderBuffer);
 
         gTextWriter = new sead::TextWriter(context, viewport);
 
@@ -245,10 +248,12 @@ HOOK_DEFINE_TRAMPOLINE(GameSystemInit) {
 };
 
 HOOK_DEFINE_TRAMPOLINE(DrawDebugMenu) {
-    static void Callback(HakoniwaSequence *thisPtr) { 
+    static void Callback(HakoniwaSequence *thisPtr) {
 
         Orig(thisPtr);
-        
+
+        // drawBackground();
+
         gTextWriter->beginDraw();
 
         gTextWriter->setCursorFromTopLeft(sead::Vector2f(10.f, 10.f));
@@ -259,7 +264,43 @@ HOOK_DEFINE_TRAMPOLINE(DrawDebugMenu) {
     }
 };
 
-extern "C" void exl_main(void* x0, void* x1) {
+namespace sead {
+    struct NinJoyNpadDevice;
+}
+
+static bool isDisableInput = true;
+
+HOOK_DEFINE_TRAMPOLINE(NpadDeviceDisableHook) {
+    static void Callback(sead::NinJoyNpadDevice *thisPtr) {
+
+        if (InputHelper::isButtonPressed(nn::hid::NpadButton::ZL) &&
+            InputHelper::isButtonDown(nn::hid::NpadButton::ZR)) {
+            isDisableInput = !isDisableInput;
+
+            Logger::log("%s Input.\n", isDisableInput ? "Disabling" : "Enabling");
+        }
+
+        if (!isDisableInput) {
+            Orig(thisPtr);
+        }
+
+    }
+};
+
+HOOK_DEFINE_TRAMPOLINE(DisableControllerSupportHook) {
+    static int Callback(nn::hid::ControllerSupportResultInfo *info,
+                        nn::hid::ControllerSupportArg const &arg) {
+
+        if (!isDisableInput) {
+            return Orig(info, arg);
+        }
+
+        return 0;
+
+    }
+};
+
+extern "C" void exl_main(void *x0, void *x1) {
     /* Setup hooking enviroment. */
     envSetOwnProcessHandle(exl::util::proc_handle::Get());
     exl::hook::Initialize();
@@ -292,6 +333,12 @@ extern "C" void exl_main(void* x0, void* x1) {
     // ImGui Hooks
 #if IMGUI_ENABLED
     nvnImGui::InstallHooks();
+
+    NpadDeviceDisableHook::InstallAtSymbol("_ZN4sead16NinJoyNpadDevice4calcEv");
+
+    DisableControllerSupportHook::InstallAtSymbol(
+            "_ZN2nn3hid21ShowControllerSupportEPNS0_27ControllerSupportResultInfoERKNS0_20ControllerSupportArgE");
+
 #endif
 
 }

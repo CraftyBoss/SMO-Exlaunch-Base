@@ -7,14 +7,20 @@
 class MemoryBuffer {
 public:
     explicit MemoryBuffer(size_t size);
+
     explicit MemoryBuffer(size_t size, nvn::MemoryPoolFlags flags);
+
     explicit MemoryBuffer(size_t size, void *buffer, nvn::MemoryPoolFlags flags);
 
-    ~MemoryBuffer();
-    size_t GetPoolSize() const {return pool.GetSize();}
-    nvn::BufferAddress GetBufferAddress() const {return buffer.GetAddress();};
-    u8 *GetMemPtr() const {return (u8*)pool.Map();}
-    bool IsBufferReady() {return mIsReady;}
+    void Finalize();
+
+    size_t GetPoolSize() const { return pool.GetSize(); }
+
+    nvn::BufferAddress GetBufferAddress() const { return buffer.GetAddress(); };
+
+    u8 *GetMemPtr() const { return (u8 *) pool.Map(); }
+
+    bool IsBufferReady() { return mIsReady; }
 
     void ClearBuffer();
 

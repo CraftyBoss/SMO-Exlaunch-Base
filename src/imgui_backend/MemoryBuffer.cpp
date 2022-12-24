@@ -12,18 +12,18 @@ MemoryBuffer::MemoryBuffer(size_t size) {
     memset(memBuffer, 0, alignedSize);
 
     bd->memPoolBuilder.SetDefaults()
-        .SetDevice(bd->device)
-        .SetFlags(nvn::MemoryPoolFlags::CPU_UNCACHED | nvn::MemoryPoolFlags::GPU_CACHED)
-        .SetStorage(memBuffer, alignedSize);
+            .SetDevice(bd->device)
+            .SetFlags(nvn::MemoryPoolFlags::CPU_UNCACHED | nvn::MemoryPoolFlags::GPU_CACHED)
+            .SetStorage(memBuffer, alignedSize);
 
-    if(!pool.Initialize(&bd->memPoolBuilder)) {
+    if (!pool.Initialize(&bd->memPoolBuilder)) {
         Logger::log("Failed to Create Memory Pool!\n");
         return;
     }
 
     bd->bufferBuilder.SetDevice(bd->device).SetDefaults().SetStorage(&pool, 0, alignedSize);
 
-    if(!buffer.Initialize(&bd->bufferBuilder)) {
+    if (!buffer.Initialize(&bd->bufferBuilder)) {
         Logger::log("Failed to Init Buffer!\n");
         return;
     }
@@ -41,18 +41,18 @@ MemoryBuffer::MemoryBuffer(size_t size, nvn::MemoryPoolFlags flags) {
     memset(memBuffer, 0, alignedSize);
 
     bd->memPoolBuilder.SetDefaults()
-        .SetDevice(bd->device)
-        .SetFlags(flags)
-        .SetStorage(memBuffer, alignedSize);
+            .SetDevice(bd->device)
+            .SetFlags(flags)
+            .SetStorage(memBuffer, alignedSize);
 
-    if(!pool.Initialize(&bd->memPoolBuilder)) {
+    if (!pool.Initialize(&bd->memPoolBuilder)) {
         Logger::log("Failed to Create Memory Pool!\n");
         return;
     }
 
     bd->bufferBuilder.SetDevice(bd->device).SetDefaults().SetStorage(&pool, 0, alignedSize);
 
-    if(!buffer.Initialize(&bd->bufferBuilder)) {
+    if (!buffer.Initialize(&bd->bufferBuilder)) {
         Logger::log("Failed to Init Buffer!\n");
         return;
     }
@@ -67,18 +67,18 @@ MemoryBuffer::MemoryBuffer(size_t size, void *bufferPtr, nvn::MemoryPoolFlags fl
     memBuffer = bufferPtr;
 
     bd->memPoolBuilder.SetDefaults()
-        .SetDevice(bd->device)
-        .SetFlags(flags)
-        .SetStorage(memBuffer, size);
+            .SetDevice(bd->device)
+            .SetFlags(flags)
+            .SetStorage(memBuffer, size);
 
-    if(!pool.Initialize(&bd->memPoolBuilder)) {
+    if (!pool.Initialize(&bd->memPoolBuilder)) {
         Logger::log("Failed to Create Memory Pool!\n");
         return;
     }
 
     bd->bufferBuilder.SetDevice(bd->device).SetDefaults().SetStorage(&pool, 0, size);
 
-    if(!buffer.Initialize(&bd->bufferBuilder)) {
+    if (!buffer.Initialize(&bd->bufferBuilder)) {
         Logger::log("Failed to Init Buffer!\n");
         return;
     }
@@ -86,7 +86,7 @@ MemoryBuffer::MemoryBuffer(size_t size, void *bufferPtr, nvn::MemoryPoolFlags fl
     mIsReady = true;
 }
 
-MemoryBuffer::~MemoryBuffer() {
+void MemoryBuffer::Finalize() {
     IM_FREE(memBuffer);
     pool.Finalize();
     buffer.Finalize();

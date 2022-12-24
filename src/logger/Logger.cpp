@@ -6,23 +6,23 @@
 
 #define ISEMU false
 
-char socketPool[0x600000+0x20000] __attribute__((aligned(0x1000)));
+char socketPool[0x600000 + 0x20000] __attribute__((aligned(0x1000)));
 
-Logger& Logger::instance() { 
+Logger &Logger::instance() {
     static Logger instance;
     return instance;
 }
 
 nn::Result Logger::init(const char *ip, u16 port) {
-    in_addr hostAddress = { 0 };
-    sockaddr serverAddress = { 0 };
+    in_addr hostAddress = {0};
+    sockaddr serverAddress = {0};
 
     if (mState != LoggerState::UNINITIALIZED)
         return -1;
 
     mIsEmulator = ISEMU;
 
-    if(mIsEmulator) {
+    if (mIsEmulator) {
         mState = LoggerState::CONNECTED;
         return 0;
     }
@@ -33,7 +33,7 @@ nn::Result Logger::init(const char *ip, u16 port) {
 
     nn::nifm::SubmitNetworkRequest();
 
-    while (nn::nifm::IsNetworkRequestOnHold()) { }
+    while (nn::nifm::IsNetworkRequestOnHold()) {}
 
     if (!nn::nifm::IsNetworkAvailable()) {
         mState = LoggerState::UNAVAILABLE;
@@ -64,7 +64,7 @@ nn::Result Logger::init(const char *ip, u16 port) {
 
 void Logger::log(const char *fmt, ...) {
 
-    if(instance().mState != LoggerState::CONNECTED && !ISEMU)
+    if (instance().mState != LoggerState::CONNECTED && !ISEMU)
         return;
 
     va_list args;
@@ -72,11 +72,11 @@ void Logger::log(const char *fmt, ...) {
 
     char buffer[0x500] = {};
 
-    if(nn::util::VSNPrintf(buffer, sizeof(buffer), fmt, args) > 0) {
+    if (nn::util::VSNPrintf(buffer, sizeof(buffer), fmt, args) > 0) {
 
-        if(ISEMU) {
+        if (ISEMU) {
             svcOutputDebugString(buffer, strlen(buffer));
-        }else {
+        } else {
             nn::socket::Send(instance().mSocketFd, buffer, strlen(buffer), 0);
         }
     }
@@ -86,12 +86,12 @@ void Logger::log(const char *fmt, ...) {
 
 void Logger::log(const char *fmt, va_list args) {
 
-    if(instance().mState != LoggerState::CONNECTED)
+    if (instance().mState != LoggerState::CONNECTED)
         return;
 
     char buffer[0x500] = {};
 
-    if(nn::util::VSNPrintf(buffer, sizeof(buffer), fmt, args) > 0) {
+    if (nn::util::VSNPrintf(buffer, sizeof(buffer), fmt, args) > 0) {
         nn::socket::Send(instance().mSocketFd, buffer, strlen(buffer), 0);
     }
 }

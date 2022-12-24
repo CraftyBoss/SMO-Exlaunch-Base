@@ -3,10 +3,11 @@
 #include "init.h"
 #include "lib.hpp"
 #include "logger/Logger.hpp"
+#include "helpers/InputHelper.h"
 
-nvn::Device* nvnDevice;
-nvn::Queue* nvnQueue;
-nvn::CommandBuffer* nvnCmdBuf;
+nvn::Device *nvnDevice;
+nvn::Queue *nvnQueue;
+nvn::CommandBuffer *nvnCmdBuf;
 nvn::TexturePool *nvnTexPool;
 nvn::SamplerPool *nvnSamplerPool;
 
@@ -21,17 +22,22 @@ nvn::SamplerPoolInitializeFunc tempSamplerPoolInitFuncPtr;
 NVNboolean deviceInit(nvn::Device *device, const nvn::DeviceBuilder *builder) {
     NVNboolean result = tempDeviceInitFuncPtr(device, builder);
     nvnDevice = device;
+
+    nvn::nvnLoadCPPProcs(nvnDevice, tempGetProcAddressFuncPtr);
+
     return result;
 }
 
-NVNboolean texturePoolInit(nvn::TexturePool *texPool, const nvn::MemoryPool *memPool, ptrdiff_t offset, int numDescriptors) {
+NVNboolean texturePoolInit(nvn::TexturePool *texPool, const nvn::MemoryPool *memPool,
+                           ptrdiff_t offset, int numDescriptors) {
     NVNboolean result = tempTexPoolInitFuncPtr(texPool, memPool, offset, numDescriptors);
     EXL_ASSERT(!nvnTexPool, "Texture Pool has already been initialized!");
     nvnTexPool = texPool;
     return result;
 }
 
-NVNboolean samplerPoolInit(nvn::SamplerPool *sampPool, const nvn::MemoryPool *memPool, ptrdiff_t offset, int numDescriptors) {
+NVNboolean samplerPoolInit(nvn::SamplerPool *sampPool, const nvn::MemoryPool *memPool,
+                           ptrdiff_t offset, int numDescriptors) {
     NVNboolean result = tempSamplerPoolInitFuncPtr(sampPool, memPool, offset, numDescriptors);
     EXL_ASSERT(!nvnSamplerPool, "Sampler Pool has already been initialized!");
     nvnSamplerPool = sampPool;
@@ -54,18 +60,18 @@ nvn::GenericFuncPtrFunc getProc(nvn::Device *device, const char *procName) {
 
     nvn::GenericFuncPtrFunc ptr = tempGetProcAddressFuncPtr(nvnDevice, procName);
 
-    if(strcmp(procName, "nvnQueueInitialize") == 0) {
-        tempQueueInitFuncPtr = (nvn::QueueInitializeFunc)ptr;
-        return (nvn::GenericFuncPtrFunc)&queueInit;
-    }else if(strcmp(procName, "nvnCommandBufferInitialize") == 0) {
-        tempBufferInitFuncPtr = (nvn::CommandBufferInitializeFunc)ptr;
-        return (nvn::GenericFuncPtrFunc)&cmdBufInit;
-    }else if(strcmp(procName, "nvnTexturePoolInitialize") == 0) {
-        tempTexPoolInitFuncPtr = (nvn::TexturePoolInitializeFunc)ptr;
-        return (nvn::GenericFuncPtrFunc)&texturePoolInit;
-    }else if(strcmp(procName, "nvnSamplerPoolInitialize") == 0) {
-        tempSamplerPoolInitFuncPtr = (nvn::SamplerPoolInitializeFunc)ptr;
-        return (nvn::GenericFuncPtrFunc)&samplerPoolInit;
+    if (strcmp(procName, "nvnQueueInitialize") == 0) {
+        tempQueueInitFuncPtr = (nvn::QueueInitializeFunc) ptr;
+        return (nvn::GenericFuncPtrFunc) &queueInit;
+    } else if (strcmp(procName, "nvnCommandBufferInitialize") == 0) {
+        tempBufferInitFuncPtr = (nvn::CommandBufferInitializeFunc) ptr;
+        return (nvn::GenericFuncPtrFunc) &cmdBufInit;
+    } else if (strcmp(procName, "nvnTexturePoolInitialize") == 0) {
+        tempTexPoolInitFuncPtr = (nvn::TexturePoolInitializeFunc) ptr;
+        return (nvn::GenericFuncPtrFunc) &texturePoolInit;
+    } else if (strcmp(procName, "nvnSamplerPoolInitialize") == 0) {
+        tempSamplerPoolInitFuncPtr = (nvn::SamplerPoolInitializeFunc) ptr;
+        return (nvn::GenericFuncPtrFunc) &samplerPoolInit;
     }
 
     return ptr;
@@ -76,12 +82,13 @@ HOOK_DEFINE_TRAMPOLINE(NvnBootstrapHook) {
 
         void *result = Orig(funcName);
 
-        if(strcmp(funcName, "nvnDeviceInitialize") == 0) {
-            tempDeviceInitFuncPtr = (nvn::DeviceInitializeFunc)result;
-            return (void*)&deviceInit;
-        }if(strcmp(funcName, "nvnDeviceGetProcAddress") == 0) {
-            tempGetProcAddressFuncPtr = (nvn::DeviceGetProcAddressFunc)result;
-            return (void*)&getProc;
+        if (strcmp(funcName, "nvnDeviceInitialize") == 0) {
+            tempDeviceInitFuncPtr = (nvn::DeviceInitializeFunc) result;
+            return (void *) &deviceInit;
+        }
+        if (strcmp(funcName, "nvnDeviceGetProcAddress") == 0) {
+            tempGetProcAddressFuncPtr = (nvn::DeviceGetProcAddressFunc) result;
+            return (void *) &getProc;
         }
 
         return result;
@@ -90,8 +97,12 @@ HOOK_DEFINE_TRAMPOLINE(NvnBootstrapHook) {
 
 // TODO: move this hook into a game agnostic location
 HOOK_DEFINE_TRAMPOLINE(ImGuiRenderFrameHook) {
-    static void* Callback(void *thisPtr) {
+    static void *Callback(void *thisPtr) {
         void *result = Orig(thisPtr);
+
+        InputHelper::updatePadState(); // update input helper
+
+        ImguiNvnBackend::updateInput(); // update backend inputs
 
         ImguiNvnBackend::newFrame();
         ImGui::NewFrame();
@@ -112,42 +123,43 @@ void nvnImGui::InstallHooks() {
 }
 
 bool nvnImGui::InitImGui() {
-    if(nvnDevice && nvnQueue) {
+    if (nvnDevice && nvnQueue) {
 
         Logger::log("Creating ImGui.\n");
 
         IMGUI_CHECKVERSION();
 
-        ImGuiMemAllocFunc allocFunc = [](size_t size, void* user_data) {
+        ImGuiMemAllocFunc allocFunc = [](size_t size, void *user_data) {
             return nn::init::GetAllocator()->Allocate(size);
         };
 
-        ImGuiMemFreeFunc freeFunc = [](void* ptr, void* user_data) {
+        ImGuiMemFreeFunc freeFunc = [](void *ptr, void *user_data) {
             nn::init::GetAllocator()->Free(ptr);
         };
 
         ImGui::SetAllocatorFunctions(allocFunc, freeFunc, nullptr);
 
         ImGui::CreateContext();
-        ImGuiIO& io = ImGui::GetIO(); (void)io;
+        ImGuiIO &io = ImGui::GetIO();
+        (void) io;
 
         ImGui::StyleColorsDark();
 
-        nvn::nvnLoadCPPProcs(nvnDevice, tempGetProcAddressFuncPtr);
-
         ImguiNvnBackend::NvnBackendInitInfo initInfo = {
-            .device = nvnDevice,
-            .queue = nvnQueue,
-            .cmdBuf = nvnCmdBuf,
-            .texPool = nvnTexPool,
-            .samplerPool = nvnSamplerPool
+                .device = nvnDevice,
+                .queue = nvnQueue,
+                .cmdBuf = nvnCmdBuf,
+                .texPool = nvnTexPool,
+                .samplerPool = nvnSamplerPool
         };
 
         ImguiNvnBackend::InitBackend(initInfo);
 
+        InputHelper::setPort(0); // set input helpers default port to zero
+
         return true;
 
-    }else {
+    } else {
         Logger::log("Unable to create ImGui Renderer!\n");
 
         return false;
