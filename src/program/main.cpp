@@ -277,6 +277,10 @@ HOOK_DEFINE_TRAMPOLINE(NpadDeviceDisableHook) {
             InputHelper::isButtonDown(nn::hid::NpadButton::ZR)) {
             isDisableInput = !isDisableInput;
 
+            auto imguibackend = ImguiNvnBackend::getBackendData();
+
+            imguibackend->isDisableInput = isDisableInput;
+
             Logger::log("%s Input.\n", isDisableInput ? "Disabling" : "Enabling");
         }
 

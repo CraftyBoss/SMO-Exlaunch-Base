@@ -13,12 +13,13 @@
 
 namespace ImguiNvnBackend {
 
+    static constexpr int MaxTexDescriptors = 256 + 100;
+    static constexpr int MaxSampDescriptors = 256 + 100;
+
     struct NvnBackendInitInfo {
         nvn::Device *device;
         nvn::Queue *queue;
         nvn::CommandBuffer *cmdBuf;
-        nvn::TexturePool *texPool;
-        nvn::SamplerPool *samplerPool;
     };
 
     struct NvnBackendData {
@@ -28,14 +29,13 @@ namespace ImguiNvnBackend {
         nvn::Device *device;
         nvn::Queue *queue;
         nvn::CommandBuffer *cmdBuf;
-        nvn::TexturePool *texPool;
-        nvn::SamplerPool *samplerPool;
 
         // builders
 
         nvn::BufferBuilder bufferBuilder;
         nvn::MemoryPoolBuilder memPoolBuilder;
         nvn::TextureBuilder texBuilder;
+        nvn::SamplerBuilder samplerBuilder;
 
         // shader data
 
@@ -50,6 +50,11 @@ namespace ImguiNvnBackend {
         nvn::VertexAttribState attribStates[3];
 
         // font data
+
+        nvn::TexturePool texPool;
+        nvn::SamplerPool samplerPool;
+
+        nvn::MemoryPool sampTexMemPool;
 
         nvn::MemoryPool fontMemPool;
 
@@ -69,6 +74,8 @@ namespace ImguiNvnBackend {
 
         u64 lastTick;
         bool isInitialized;
+
+        bool isDisableInput = true;
 
         CompiledData imguiShaderBinary;
 
@@ -94,6 +101,8 @@ namespace ImguiNvnBackend {
     void updateInput();
 
     void newFrame();
+
+    void setRenderStates();
 
     void renderDrawData(ImDrawData *drawData);
 

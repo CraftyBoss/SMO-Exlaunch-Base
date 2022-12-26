@@ -6,8 +6,8 @@
 #include "nn/os.h"
 #include "nn/hid.h"
 
-#include "tenacity_font.h"
 #include "helpers/InputHelper.h"
+#include "MemoryPoolMaker.h"
 
 #define UBOSIZE 0x1000
 
@@ -25,39 +25,6 @@ static const Matrix44f projMatrix = {
 };
 
 namespace ImguiNvnBackend {
-
-    ImVector<ImVec2> shaderTesting(int X, int Y) {
-
-        // Define the size of each quad in the X and Y direction
-        float quadSizeX = 1.0f;
-        float quadSizeY = 1.0f;
-
-        // Create a vector to store the vertices of the plane
-        ImVector<ImVec2> vertices;
-        vertices.resize(6);
-
-        // Loop over the X and Y dimensions of the grid
-        for (int i = 0; i < X; i++) {
-            for (int j = 0; j < Y; j++) {
-                // Compute the position of the four vertices of the quad
-                ImVec2 p1 = ImVec2(i * quadSizeX, j * quadSizeY);
-                ImVec2 p2 = ImVec2(i * quadSizeX + quadSizeX, j * quadSizeY);
-                ImVec2 p3 = ImVec2(i * quadSizeX, j * quadSizeY + quadSizeY);
-                ImVec2 p4 = ImVec2(i * quadSizeX + quadSizeX, j * quadSizeY + quadSizeY);
-
-                // Add the vertices of the quad to the vector of vertices
-                vertices.push_back(p1);
-                vertices.push_back(p2);
-                vertices.push_back(p3);
-
-                vertices.push_back(p2);
-                vertices.push_back(p4);
-                vertices.push_back(p3);
-            }
-        }
-
-        return vertices;
-    }
 
     void initTestShader() {
 
@@ -91,13 +58,58 @@ namespace ImguiNvnBackend {
 
     }
 
+    int texIDSelector() {
+        {
+
+            static int curId = 256;
+            static int downCounter = 0;
+            static int upCounter = 0;
+
+            if (InputHelper::isButtonDown(nn::hid::NpadButton::Left)) {
+                curId--;
+                Logger::log("ID: %d\n", curId);
+            } else if (InputHelper::isButtonPressed(nn::hid::NpadButton::Left)) {
+
+                downCounter++;
+                if (downCounter > 30) {
+                    curId--;
+                    Logger::log("ID: %d\n", curId);
+                }
+            } else {
+                downCounter = 0;
+            }
+
+            if (InputHelper::isButtonDown(nn::hid::NpadButton::Right)) {
+                curId++;
+                Logger::log("ID: %d\n", curId);
+            } else if (InputHelper::isButtonPressed(nn::hid::NpadButton::Right)) {
+
+                upCounter++;
+                if (upCounter > 30) {
+                    curId++;
+                    Logger::log("ID: %d\n", curId);
+                }
+            } else {
+                upCounter = 0;
+            }
+
+            /* fun values with bd->device->GetTextureHandle(curId, 256):
+             * 282 = Window Texture
+             * 393 = Some sort of render pass (shadow?) nvm it just seems to be the first occurrence of many more textures like it
+             * 257 = debug font texture
+             */
+
+            return curId;
+        }
+    }
+
     void renderTestShader() {
 
         auto bd = getBackendData();
 
-        int pointCount = 3;
+        int pointCount = 6;
 
-        size_t totalVtxSize = pointCount * sizeof(ImVec2);
+        size_t totalVtxSize = pointCount * sizeof(ImDrawVert);
         if (!bd->vtxBuffer || bd->vtxBuffer->GetPoolSize() < totalVtxSize) {
             if (bd->vtxBuffer) {
                 bd->vtxBuffer->Finalize();
@@ -112,28 +124,92 @@ namespace ImguiNvnBackend {
             return;
         }
 
-        ImVec2 *verts = (ImVec2 *) bd->vtxBuffer->GetMemPtr();
+        ImDrawVert *verts = (ImDrawVert *) bd->vtxBuffer->GetMemPtr();
 
-        verts[0] = ImVec2(300, 300);
-        verts[1] = ImVec2(400, 400);
-        verts[2] = ImVec2(300, 400);
+        float scale = 3.0f;
+
+        float imageX = bd->fontTexture.GetWidth(); // 100 * scale;
+        float imageY = bd->fontTexture.GetHeight();  // 100 * scale;
+
+        float minXVal = (DISPWIDTH / 2) - (imageX); // 300
+        float maxXVal = (DISPWIDTH / 2) + (imageX); // 300
+        float minYVal = (DISPHEIGHT / 2) - (imageY); // 400
+        float maxYVal = (DISPHEIGHT / 2) + (imageY); // 400
+
+        ImU32 quadColor = IM_COL32_WHITE;
+
+        // top left
+        ImDrawVert p1 = {
+                .pos = ImVec2(minXVal, minYVal),
+                .uv = ImVec2(0.0f, 0.0f),
+                .col = quadColor
+        };
+        // top right
+        ImDrawVert p2 = {
+                .pos = ImVec2(minXVal, maxYVal),
+                .uv = ImVec2(0.0f, 1.0f),
+                .col = quadColor
+        };
+        // bottom left
+        ImDrawVert p3 = {
+                .pos = ImVec2(maxXVal, minYVal),
+                .uv = ImVec2(1.0f, 0.0f),
+                .col = quadColor
+        };
+        // bottom right
+        ImDrawVert p4 = {
+                .pos = ImVec2(maxXVal, maxYVal),
+
+                .uv = ImVec2(1.0f, 1.0f),
+                .col = quadColor
+        };
+
+        verts[0] = p4;
+        verts[1] = p2;
+        verts[2] = p1;
+
+        verts[3] = p1;
+        verts[4] = p3;
+        verts[5] = p4;
 
         bd->cmdBuf->BeginRecording();
-        bd->cmdBuf->BindProgram(&bd->testShader, nvn::ShaderStageBits::VERTEX | nvn::ShaderStageBits::FRAGMENT);
+        bd->cmdBuf->BindProgram(&bd->shaderProgram, nvn::ShaderStageBits::VERTEX | nvn::ShaderStageBits::FRAGMENT);
 
         bd->cmdBuf->BindUniformBuffer(nvn::ShaderStage::VERTEX, 0, *bd->uniformMemory, UBOSIZE);
         bd->cmdBuf->UpdateUniformBuffer(*bd->uniformMemory, UBOSIZE, 0, sizeof(projMatrix), &projMatrix);
 
-        nvn::VertexAttribState attribute;
-        attribute.SetDefaults().SetFormat(nvn::Format::RG32F, 0).SetStreamIndex(0);
+        nvn::VertexAttribState attributes[3];
+        attributes[0].SetDefaults().SetFormat(nvn::Format::RG32F, offsetof(ImDrawVert, pos));
+        attributes[1].SetDefaults().SetFormat(nvn::Format::RG32F, offsetof(ImDrawVert, uv));
+        attributes[2].SetDefaults().SetFormat(nvn::Format::RGBA8, offsetof(ImDrawVert, col));
 
         nvn::VertexStreamState stream;
         stream.SetDefaults();
-        stream.SetStride(sizeof(ImVec2));
+        stream.SetStride(sizeof(ImDrawVert));
 
-        bd->cmdBuf->BindVertexAttribState(1, &attribute);
+        bd->cmdBuf->BindVertexAttribState(3, attributes);
         bd->cmdBuf->BindVertexStreamState(1, &stream);
+
         bd->cmdBuf->BindVertexBuffer(0, (*bd->vtxBuffer), bd->vtxBuffer->GetPoolSize());
+
+        bd->cmdBuf->SetTexturePool(&bd->texPool);
+        bd->cmdBuf->SetSamplerPool(&bd->samplerPool);
+
+        static bool isDisableGameRender = true;
+
+        if (bd->isDisableInput && InputHelper::isButtonDown(nn::hid::NpadButton::L)) {
+            isDisableGameRender = !isDisableGameRender;
+        }
+
+        if (isDisableGameRender) {
+            float defColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+            bd->cmdBuf->ClearColor(0, defColor, nvn::ClearColorMask::RGBA);
+            bd->cmdBuf->ClearDepthStencil(1.0f, true, 0, 0xFF);
+        }
+
+        setRenderStates();
+
+        bd->cmdBuf->BindTexture(nvn::ShaderStage::FRAGMENT, 0, bd->fontTexHandle);
 
         bd->cmdBuf->DrawArrays(nvn::DrawPrimitive::TRIANGLES, 0, pointCount);
 
@@ -189,19 +265,40 @@ namespace ImguiNvnBackend {
 
         ImGuiIO &io = ImGui::GetIO();
 
+        // init sampler and texture pools
+
+        int sampDescSize = 0;
+        bd->device->GetInteger(nvn::DeviceInfo::SAMPLER_DESCRIPTOR_SIZE, &sampDescSize);
+        int texDescSize = 0;
+        bd->device->GetInteger(nvn::DeviceInfo::TEXTURE_DESCRIPTOR_SIZE, &texDescSize);
+
+        int sampMemPoolSize = sampDescSize * MaxSampDescriptors;
+        int texMemPoolSize = texDescSize * MaxTexDescriptors;
+        int totalPoolSize = ALIGN_UP(sampMemPoolSize + texMemPoolSize, 0x1000);
+        if (!MemoryPoolMaker::createPool(&bd->sampTexMemPool, totalPoolSize)) {
+            Logger::log("Failed to Create Texture/Sampler Memory Pool!\n");
+            return false;
+        }
+
+        if (!bd->samplerPool.Initialize(&bd->sampTexMemPool, 0, MaxSampDescriptors)) {
+            Logger::log("Failed to Create Sampler Pool!\n");
+            return false;
+        }
+
+        if (!bd->texPool.Initialize(&bd->sampTexMemPool, sampMemPoolSize, MaxTexDescriptors)) {
+            Logger::log("Failed to Create Texture Pool!\n");
+            return false;
+        }
+
+        // convert imgui font texels
+
         unsigned char *pixels;
         int width, height, pixelByteSize;
         io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height, &pixelByteSize);
-
         int texPoolSize = pixelByteSize * width * height;
 
-        void *texturePool = IM_ALLOC(ALIGN_UP(texPoolSize, 0x1000));
-
-        bd->memPoolBuilder.SetDefaults().SetDevice(bd->device).SetFlags(
-                        nvn::MemoryPoolFlags::CPU_NO_ACCESS | nvn::MemoryPoolFlags::GPU_CACHED)
-                .SetStorage(texturePool, ALIGN_UP(texPoolSize, 0x1000));
-
-        if (!bd->fontMemPool.Initialize(&bd->memPoolBuilder)) {
+        if (!MemoryPoolMaker::createPool(&bd->fontMemPool, ALIGN_UP(texPoolSize, 0x1000),
+                                         nvn::MemoryPoolFlags::CPU_UNCACHED | nvn::MemoryPoolFlags::GPU_CACHED)) {
             Logger::log("Failed to Create Font Memory Pool!\n");
             return false;
         }
@@ -209,7 +306,7 @@ namespace ImguiNvnBackend {
         bd->texBuilder.SetDefaults()
                 .SetDevice(bd->device)
                 .SetTarget(nvn::TextureTarget::TARGET_2D)
-                .SetFormat(nvn::Format::RGBA8UI)
+                .SetFormat(nvn::Format::RGBA8)
                 .SetSize2D(width, height)
                 .SetStorage(&bd->fontMemPool, 0);
 
@@ -220,73 +317,36 @@ namespace ImguiNvnBackend {
 
         // setup font texture
 
-        void *scratchPool = IM_ALLOC(ALIGN_UP(texPoolSize, 0x1000));
-
-        bd->memPoolBuilder.SetDefaults().SetDevice(bd->device).SetFlags(
-                        nvn::MemoryPoolFlags::CPU_UNCACHED | nvn::MemoryPoolFlags::GPU_CACHED)
-                .SetStorage(scratchPool, ALIGN_UP(texPoolSize, 0x1000));
-
-        nvn::MemoryPool scratchMemPool;
-
-        if (!scratchMemPool.Initialize(&bd->memPoolBuilder)) {
-            Logger::log("Failed to Create Font Memory Pool!\n");
-            return false;
-        }
-
-        memcpy(scratchMemPool.Map(), pixels, texPoolSize); // copy pixel data to memory pool
-
-        bd->bufferBuilder.SetDefaults().SetDevice(bd->device)
-                .SetStorage(&scratchMemPool, 0, ALIGN_UP(texPoolSize, 0x1000));
-
-        nvn::Buffer scratchBuffer;
-        if (!scratchBuffer.Initialize(&bd->bufferBuilder)) {
-            Logger::log("Failed to Create Scratch Buffer!\n");
-            return false;
-        }
-
-        nvn::TextureView view{};
-        view.SetDefaults().SetTarget(nvn::TextureTarget::TARGET_2D).SetFormat(nvn::Format::RGBA8UI);
-
         nvn::CopyRegion region = {
                 .xoffset = 0,
                 .yoffset = 0,
                 .zoffset = 0,
-                .width = width,
-                .height = height,
+                .width = bd->fontTexture.GetWidth(),
+                .height = bd->fontTexture.GetHeight(),
                 .depth = 1
         };
 
-//        bd->cmdBuf->BeginRecording();
-//        bd->cmdBuf->CopyBufferToTexture(scratchBuffer.GetAddress(), &bd->fontTexture, &view, &region,
-//                                        nvn::CopyFlags::NONE);
-//        nvn::CommandHandle handle = bd->cmdBuf->EndRecording();
-//        bd->queue->SubmitCommands(1, &handle);
+        bd->fontTexture.WriteTexels(nullptr, &region, pixels);
+        bd->fontTexture.FlushTexels(nullptr, &region);
 
-        nvn::SamplerBuilder samplerBuilder{};
-        samplerBuilder.SetDefaults()
+        bd->samplerBuilder.SetDefaults()
                 .SetDevice(bd->device)
                 .SetMinMagFilter(nvn::MinFilter::LINEAR, nvn::MagFilter::LINEAR)
-                .SetWrapMode(nvn::WrapMode::CLAMP_TO_EDGE, nvn::WrapMode::CLAMP_TO_EDGE, nvn::WrapMode::CLAMP_TO_EDGE);
+                .SetWrapMode(nvn::WrapMode::CLAMP, nvn::WrapMode::CLAMP, nvn::WrapMode::CLAMP);
 
-        if (!bd->fontSampler.Initialize(&samplerBuilder)) {
+        if (!bd->fontSampler.Initialize(&bd->samplerBuilder)) {
             Logger::log("Failed to Init Font Sampler!\n");
             return false;
         }
 
-        bd->textureId = 512;
-        bd->samplerId = 512;
+        bd->textureId = 257;
+        bd->samplerId = 257;
 
         // we only need to register 1 texture, so id doesn't particularly matter (so long as source game does not have more than 511 textures loaded)
-        bd->texPool->RegisterTexture(bd->textureId, &bd->fontTexture, &view);
-
-        bd->samplerPool->RegisterSampler(bd->samplerId, &bd->fontSampler);
-
+        bd->texPool.RegisterTexture(bd->textureId, &bd->fontTexture, nullptr);
+        bd->samplerPool.RegisterSampler(bd->samplerId, &bd->fontSampler);
         bd->fontTexHandle = bd->device->GetTextureHandle(bd->textureId, bd->samplerId);
         io.Fonts->SetTexID(&bd->fontTexHandle);
-
-        scratchBuffer.Finalize();
-        scratchMemPool.Finalize();
-        IM_FREE(scratchPool);
 
         Logger::log("Finished.\n");
 
@@ -345,7 +405,7 @@ namespace ImguiNvnBackend {
 
         bd->attribStates[0].SetDefaults().SetFormat(nvn::Format::RG32F, offsetof(ImDrawVert, pos)); // pos
         bd->attribStates[1].SetDefaults().SetFormat(nvn::Format::RG32F, offsetof(ImDrawVert, uv)); // uv
-        bd->attribStates[2].SetDefaults().SetFormat(nvn::Format::RGBA8_UI2F, offsetof(ImDrawVert, col)); // color
+        bd->attribStates[2].SetDefaults().SetFormat(nvn::Format::RGBA8, offsetof(ImDrawVert, col)); // color
 
         bd->streamState.SetDefaults().SetStride(sizeof(ImDrawVert));
 
@@ -373,9 +433,9 @@ namespace ImguiNvnBackend {
         bd->device = initInfo.device;
         bd->queue = initInfo.queue;
         bd->cmdBuf = initInfo.cmdBuf;
-        bd->texPool = initInfo.texPool;
-        bd->samplerPool = initInfo.samplerPool;
         bd->isInitialized = false;
+
+        io.Fonts->AddFontDefault();
 
         nvn::DebugCallbackFunc callbackFunc = [](nvn::DebugCallbackSource::Enum source,
                                                  nvn::DebugCallbackType::Enum type, int unkInt,
@@ -449,6 +509,34 @@ namespace ImguiNvnBackend {
         bd->lastTick = nn::os::GetSystemTick();
     }
 
+    void setRenderStates() {
+
+        auto bd = getBackendData();
+
+        nvn::PolygonState polyState;
+        polyState.SetDefaults();
+        polyState.SetPolygonMode(nvn::PolygonMode::FILL);
+        polyState.SetCullFace(nvn::Face::NONE);
+        polyState.SetFrontFace(nvn::FrontFace::CCW);
+        bd->cmdBuf->BindPolygonState(&polyState);
+
+        nvn::ColorState colorState;
+        colorState.SetDefaults();
+        colorState.SetLogicOp(nvn::LogicOp::COPY);
+        colorState.SetAlphaTest(nvn::AlphaFunc::ALWAYS);
+        for (int i = 0; i < 8; ++i) {
+            colorState.SetBlendEnable(i, true);
+        }
+        bd->cmdBuf->BindColorState(&colorState);
+
+        nvn::BlendState blendState;
+        blendState.SetDefaults();
+        blendState.SetBlendFunc(nvn::BlendFunc::SRC_ALPHA, nvn::BlendFunc::ONE_MINUS_SRC_ALPHA, nvn::BlendFunc::ONE,
+                                nvn::BlendFunc::ZERO);
+        blendState.SetBlendEquation(nvn::BlendEquation::ADD, nvn::BlendEquation::ADD);
+        bd->cmdBuf->BindBlendState(&blendState);
+    }
+
     void renderDrawData(ImDrawData *drawData) {
 
         if (!drawData->Valid) {
@@ -476,10 +564,6 @@ namespace ImguiNvnBackend {
 
         bd->cmdBuf->BeginRecording();
 
-//        float defColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-//        bd->cmdBuf->ClearColor(0, defColor, nvn::ClearColorMask::RGBA);
-//        bd->cmdBuf->ClearDepthStencil(1.0f, true, 0, 0xFF);
-
         bd->cmdBuf->BindProgram(&bd->shaderProgram, nvn::ShaderStageBits::VERTEX | nvn::ShaderStageBits::FRAGMENT);
 
         bd->cmdBuf->BindUniformBuffer(nvn::ShaderStage::VERTEX, 0, *bd->uniformMemory, UBOSIZE);
@@ -488,38 +572,10 @@ namespace ImguiNvnBackend {
         bd->cmdBuf->BindVertexAttribState(3, bd->attribStates);
         bd->cmdBuf->BindVertexStreamState(1, &bd->streamState);
 
-        nvn::PolygonState polyState;
-        polyState.SetDefaults();
-        polyState.SetPolygonMode(nvn::PolygonMode::FILL);
-        polyState.SetCullFace(nvn::Face::NONE);
-        polyState.SetFrontFace(nvn::FrontFace::CCW);
-        bd->cmdBuf->BindPolygonState(&polyState);
+        bd->cmdBuf->SetTexturePool(&bd->texPool);
+        bd->cmdBuf->SetSamplerPool(&bd->samplerPool);
 
-        nvn::ColorState colorState;
-        colorState.SetDefaults();
-        colorState.SetLogicOp(nvn::LogicOp::COPY);
-        colorState.SetAlphaTest(nvn::AlphaFunc::ALWAYS);
-        for (int i = 0; i < 8; ++i) {
-            colorState.SetBlendEnable(i, true);
-        }
-        bd->cmdBuf->BindColorState(&colorState);
-
-        nvn::BlendState blendState;
-        blendState.SetDefaults();
-        blendState.SetBlendFunc(nvn::BlendFunc::SRC_ALPHA, nvn::BlendFunc::ONE_MINUS_SRC_ALPHA, nvn::BlendFunc::ONE,
-                                nvn::BlendFunc::ONE_MINUS_SRC_ALPHA);
-        blendState.SetBlendEquation(nvn::BlendEquation::ADD, nvn::BlendEquation::ADD);
-        bd->cmdBuf->BindBlendState(&blendState);
-
-        nvn::ChannelMaskState colorMask;
-        colorMask.SetDefaults();
-        bd->cmdBuf->BindChannelMaskState(&colorMask);
-
-        nvn::DepthStencilState depthState;
-        depthState.SetDefaults();
-        depthState.SetDepthTestEnable(false);
-        depthState.SetStencilTestEnable(false);
-        bd->cmdBuf->BindDepthStencilState(&depthState);
+        setRenderStates();
 
         size_t totalVtxSize = drawData->TotalVtxCount * sizeof(ImDrawVert);
         if (!bd->vtxBuffer || bd->vtxBuffer->GetPoolSize() < totalVtxSize) {
@@ -605,15 +661,8 @@ namespace ImguiNvnBackend {
                                                    (*bd->idxBuffer) + (cmd.IdxOffset * sizeof(ImDrawIdx)),
                                                    cmd.VtxOffset);
 
-//                bd->cmdBuf->DrawElements(nvn::DrawPrimitive::TRIANGLES, nvn::IndexType::UNSIGNED_SHORT,
-//                                         cmd.ElemCount * 3, (*bd->idxBuffer) + (cmd.IdxOffset * sizeof(ImDrawIdx)));
-
             }
         }
-
-        // bd->cmdBuf->DrawElements(nvn::DrawPrimitive::TRIANGLES, nvn::IndexType::UNSIGNED_SHORT, drawData->TotalVtxCount / 3, *bd->idxBuffer);
-
-        // bd->cmdBuf->Barrier(nvn::BarrierBits::ORDER_FRAGMENTS);
 
         auto handle = bd->cmdBuf->EndRecording();
         bd->queue->SubmitCommands(1, &handle);
