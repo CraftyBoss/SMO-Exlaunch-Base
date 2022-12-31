@@ -9,6 +9,8 @@
 #include "types.h"
 #include "MemoryBuffer.h"
 
+#include "os/os_tick.hpp"
+
 #ifdef __cplusplus
 
 namespace ImguiNvnBackend {
@@ -72,7 +74,7 @@ namespace ImguiNvnBackend {
 
         // misc data
 
-        u64 lastTick;
+        nn::TimeSpanType lastTick;
         bool isInitialized;
 
         bool isDisableInput = true;

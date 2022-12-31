@@ -30,6 +30,7 @@
 #include "agl/utl.h"
 #include "imgui_nvn.h"
 #include "helpers/InputHelper.h"
+#include "init.h"
 
 static const char *DBG_FONT_PATH = "DebugData/Font/nvn_font_jis1.ntx";
 static const char *DBG_SHADER_PATH = "DebugData/Font/nvn_font_shader_jis1.bin";
@@ -52,6 +53,45 @@ void drawBackground() {
     agl::utl::DevTools::beginDrawImm(context, sead::Matrix34<float>::ident, sead::Matrix44<float>::ident);
     agl::utl::DevTools::drawTriangleImm(context, p1, p2, p3, c);
     agl::utl::DevTools::drawTriangleImm(context, p3, p4, p2, c);
+}
+
+void drawCursor() {
+
+    agl::DrawContext *context = Application::instance()->mDrawInfo->mDrawContext;
+
+    nn::hid::MouseState state{};
+    nn::hid::GetMouseState(&state);
+    agl::utl::DevTools::beginDrawImm(context, sead::Matrix34<float>::ident,
+                                     sead::Matrix44<float>::ident);
+    sead::Vector2f screenSize = sead::Vector2f(1280.0f, 720.0f) / 2.0f;
+    agl::utl::DevTools::drawCursor(context, screenSize, sead::Vector2f(((float) state.x - screenSize.x) / screenSize.x,
+                                                                       ((float) -state.y + screenSize.y) /
+                                                                       screenSize.y), 0.5f);
+
+}
+
+void drawImGuiDebug() {
+
+    auto bd = ImguiNvnBackend::getBackendData();
+    ImGuiIO io = ImGui::GetIO();
+
+    ImVec2 mousePos;
+    InputHelper::getMouseCoords(&mousePos.x, &mousePos.y);
+    ImVec2 scrollDelta;
+    InputHelper::getScrollDelta(&scrollDelta.x, &scrollDelta.y);
+
+    gTextWriter->setCursorFromTopLeft(sead::Vector2f(10.f, 480.f));
+
+    nn::TimeSpan curTick = nn::os::GetSystemTick().ToTimeSpan();
+    nn::TimeSpan prevTick(bd->lastTick);
+    float sec = fabsf((double) (curTick - prevTick).GetNanoSeconds() / 1000000000.0);
+
+    gTextWriter->printf("Delta Time: (u64) %llu (float) %f\n", sec, (float) sec);
+
+    gTextWriter->printf("ImGui Delta Time: %f\n", io.DeltaTime);
+
+    gTextWriter->printf("Mouse Coords: X: %f Y: %f\n", mousePos.x, mousePos.y);
+    gTextWriter->printf("Scroll Delta: X: %f Y: %f\n", scrollDelta.x, scrollDelta.y);
 }
 
 void graNoclipCode(al::LiveActor *player) {
@@ -254,10 +294,14 @@ HOOK_DEFINE_TRAMPOLINE(DrawDebugMenu) {
 
         // drawBackground();
 
+//        drawCursor();
+
         gTextWriter->beginDraw();
 
         gTextWriter->setCursorFromTopLeft(sead::Vector2f(10.f, 10.f));
         gTextWriter->printf("FPS: %d\n", static_cast<int>(round(Application::instance()->mFramework->calcFps())));
+
+//        drawImGuiDebug();
 
         gTextWriter->endDraw();
 
@@ -273,8 +317,8 @@ static bool isDisableInput = true;
 HOOK_DEFINE_TRAMPOLINE(NpadDeviceDisableHook) {
     static void Callback(sead::NinJoyNpadDevice *thisPtr) {
 
-        if (InputHelper::isButtonPressed(nn::hid::NpadButton::ZL) &&
-            InputHelper::isButtonDown(nn::hid::NpadButton::ZR)) {
+        if (InputHelper::isButtonHold(nn::hid::NpadButton::ZL) &&
+            InputHelper::isButtonPress(nn::hid::NpadButton::ZR)) {
             isDisableInput = !isDisableInput;
 
             auto imguibackend = ImguiNvnBackend::getBackendData();

@@ -1,4 +1,6 @@
+#include <cmath>
 #include "imgui_impl_nvn.hpp"
+#include "imgui_hid_mappings.h"
 #include "lib.hpp"
 #include "helpers.h"
 #include "logger/Logger.hpp"
@@ -10,9 +12,6 @@
 #include "MemoryPoolMaker.h"
 
 #define UBOSIZE 0x1000
-
-#define DISPWIDTH 1280.0f
-#define DISPHEIGHT 720.0f
 
 typedef float Matrix44f[4][4];
 
@@ -26,6 +25,7 @@ static const Matrix44f projMatrix = {
 
 namespace ImguiNvnBackend {
 
+    // doesnt get used anymore really, as back when it was needed i had a simplified shader to test with, but now I just test with the actual imgui shader
     void initTestShader() {
 
         auto bd = getBackendData();
@@ -55,9 +55,9 @@ namespace ImguiNvnBackend {
 
         Logger::log("Test Shader Setup.\n");
 
-
     }
 
+    // neat tool to cycle through all loaded textures in a texture pool
     int texIDSelector() {
         {
 
@@ -65,10 +65,10 @@ namespace ImguiNvnBackend {
             static int downCounter = 0;
             static int upCounter = 0;
 
-            if (InputHelper::isButtonDown(nn::hid::NpadButton::Left)) {
+            if (InputHelper::isButtonPress(nn::hid::NpadButton::Left)) {
                 curId--;
                 Logger::log("ID: %d\n", curId);
-            } else if (InputHelper::isButtonPressed(nn::hid::NpadButton::Left)) {
+            } else if (InputHelper::isButtonHold(nn::hid::NpadButton::Left)) {
 
                 downCounter++;
                 if (downCounter > 30) {
@@ -79,10 +79,10 @@ namespace ImguiNvnBackend {
                 downCounter = 0;
             }
 
-            if (InputHelper::isButtonDown(nn::hid::NpadButton::Right)) {
+            if (InputHelper::isButtonPress(nn::hid::NpadButton::Right)) {
                 curId++;
                 Logger::log("ID: %d\n", curId);
-            } else if (InputHelper::isButtonPressed(nn::hid::NpadButton::Right)) {
+            } else if (InputHelper::isButtonHold(nn::hid::NpadButton::Right)) {
 
                 upCounter++;
                 if (upCounter > 30) {
@@ -103,11 +103,60 @@ namespace ImguiNvnBackend {
         }
     }
 
-    void renderTestShader() {
+    // places ImDrawVerts, starting at startIndex, that use the x,y,width, and height values to define vertex coords
+    void createQuad(ImDrawVert *verts, int startIndex, int x, int y, int width, int height, ImU32 col) {
+
+        float minXVal = x;
+        float maxXVal = x + width;
+        float minYVal = y; // 400
+        float maxYVal = y + height; // 400
+
+        // top left
+        ImDrawVert p1 = {
+                .pos = ImVec2(minXVal, minYVal),
+                .uv = ImVec2(0.0f, 0.0f),
+                .col = col
+        };
+        // top right
+        ImDrawVert p2 = {
+                .pos = ImVec2(minXVal, maxYVal),
+                .uv = ImVec2(0.0f, 1.0f),
+                .col = col
+        };
+        // bottom left
+        ImDrawVert p3 = {
+                .pos = ImVec2(maxXVal, minYVal),
+                .uv = ImVec2(1.0f, 0.0f),
+                .col = col
+        };
+        // bottom right
+        ImDrawVert p4 = {
+                .pos = ImVec2(maxXVal, maxYVal),
+                .uv = ImVec2(1.0f, 1.0f),
+                .col = col
+        };
+
+        verts[startIndex] = p4;
+        verts[startIndex + 1] = p2;
+        verts[startIndex + 2] = p1;
+
+        verts[startIndex + 3] = p1;
+        verts[startIndex + 4] = p3;
+        verts[startIndex + 5] = p4;
+    }
+
+    // this function is mainly what I used to debug the rendering of ImGui, so code is a bit messier
+    void renderTestShader(ImDrawData *drawData) {
 
         auto bd = getBackendData();
+        auto io = ImGui::GetIO();
 
-        int pointCount = 6;
+        constexpr int triVertCount = 3;
+        constexpr int quadVertCount = triVertCount * 2;
+
+        int quadCount = 1; // modify to reflect how many quads need to be drawn per frame
+
+        int pointCount = quadVertCount * quadCount;
 
         size_t totalVtxSize = pointCount * sizeof(ImDrawVert);
         if (!bd->vtxBuffer || bd->vtxBuffer->GetPoolSize() < totalVtxSize) {
@@ -128,49 +177,11 @@ namespace ImguiNvnBackend {
 
         float scale = 3.0f;
 
-        float imageX = bd->fontTexture.GetWidth(); // 100 * scale;
-        float imageY = bd->fontTexture.GetHeight();  // 100 * scale;
+        float imageX = 1 * scale; // bd->fontTexture.GetWidth();
+        float imageY = 1 * scale; // bd->fontTexture.GetHeight();
 
-        float minXVal = (DISPWIDTH / 2) - (imageX); // 300
-        float maxXVal = (DISPWIDTH / 2) + (imageX); // 300
-        float minYVal = (DISPHEIGHT / 2) - (imageY); // 400
-        float maxYVal = (DISPHEIGHT / 2) + (imageY); // 400
-
-        ImU32 quadColor = IM_COL32_WHITE;
-
-        // top left
-        ImDrawVert p1 = {
-                .pos = ImVec2(minXVal, minYVal),
-                .uv = ImVec2(0.0f, 0.0f),
-                .col = quadColor
-        };
-        // top right
-        ImDrawVert p2 = {
-                .pos = ImVec2(minXVal, maxYVal),
-                .uv = ImVec2(0.0f, 1.0f),
-                .col = quadColor
-        };
-        // bottom left
-        ImDrawVert p3 = {
-                .pos = ImVec2(maxXVal, minYVal),
-                .uv = ImVec2(1.0f, 0.0f),
-                .col = quadColor
-        };
-        // bottom right
-        ImDrawVert p4 = {
-                .pos = ImVec2(maxXVal, maxYVal),
-
-                .uv = ImVec2(1.0f, 1.0f),
-                .col = quadColor
-        };
-
-        verts[0] = p4;
-        verts[1] = p2;
-        verts[2] = p1;
-
-        verts[3] = p1;
-        verts[4] = p3;
-        verts[5] = p4;
+        createQuad(verts, 0, (io.DisplaySize.x / 2) - (imageX), (io.DisplaySize.y / 2) - (imageY), imageX, imageY,
+                   IM_COL32_WHITE);
 
         bd->cmdBuf->BeginRecording();
         bd->cmdBuf->BindProgram(&bd->shaderProgram, nvn::ShaderStageBits::VERTEX | nvn::ShaderStageBits::FRAGMENT);
@@ -178,38 +189,11 @@ namespace ImguiNvnBackend {
         bd->cmdBuf->BindUniformBuffer(nvn::ShaderStage::VERTEX, 0, *bd->uniformMemory, UBOSIZE);
         bd->cmdBuf->UpdateUniformBuffer(*bd->uniformMemory, UBOSIZE, 0, sizeof(projMatrix), &projMatrix);
 
-        nvn::VertexAttribState attributes[3];
-        attributes[0].SetDefaults().SetFormat(nvn::Format::RG32F, offsetof(ImDrawVert, pos));
-        attributes[1].SetDefaults().SetFormat(nvn::Format::RG32F, offsetof(ImDrawVert, uv));
-        attributes[2].SetDefaults().SetFormat(nvn::Format::RGBA8, offsetof(ImDrawVert, col));
-
-        nvn::VertexStreamState stream;
-        stream.SetDefaults();
-        stream.SetStride(sizeof(ImDrawVert));
-
-        bd->cmdBuf->BindVertexAttribState(3, attributes);
-        bd->cmdBuf->BindVertexStreamState(1, &stream);
-
         bd->cmdBuf->BindVertexBuffer(0, (*bd->vtxBuffer), bd->vtxBuffer->GetPoolSize());
-
-        bd->cmdBuf->SetTexturePool(&bd->texPool);
-        bd->cmdBuf->SetSamplerPool(&bd->samplerPool);
-
-        static bool isDisableGameRender = true;
-
-        if (bd->isDisableInput && InputHelper::isButtonDown(nn::hid::NpadButton::L)) {
-            isDisableGameRender = !isDisableGameRender;
-        }
-
-        if (isDisableGameRender) {
-            float defColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-            bd->cmdBuf->ClearColor(0, defColor, nvn::ClearColorMask::RGBA);
-            bd->cmdBuf->ClearDepthStencil(1.0f, true, 0, 0xFF);
-        }
 
         setRenderStates();
 
-        bd->cmdBuf->BindTexture(nvn::ShaderStage::FRAGMENT, 0, bd->fontTexHandle);
+//        bd->cmdBuf->BindTexture(nvn::ShaderStage::FRAGMENT, 0, bd->fontTexHandle);
 
         bd->cmdBuf->DrawArrays(nvn::DrawPrimitive::TRIANGLES, 0, pointCount);
 
@@ -342,9 +326,9 @@ namespace ImguiNvnBackend {
         bd->textureId = 257;
         bd->samplerId = 257;
 
-        // we only need to register 1 texture, so id doesn't particularly matter (so long as source game does not have more than 511 textures loaded)
         bd->texPool.RegisterTexture(bd->textureId, &bd->fontTexture, nullptr);
         bd->samplerPool.RegisterSampler(bd->samplerId, &bd->fontSampler);
+
         bd->fontTexHandle = bd->device->GetTextureHandle(bd->textureId, bd->samplerId);
         io.Fonts->SetTexID(&bd->fontTexHandle);
 
@@ -421,11 +405,12 @@ namespace ImguiNvnBackend {
         io.BackendPlatformName = "Switch";
         io.BackendRendererName = "imgui_impl_nvn";
         io.IniFilename = nullptr;
-        io.MouseDrawCursor = false;
+        io.MouseDrawCursor = true;
         io.ConfigFlags |= ImGuiConfigFlags_IsTouchScreen;
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
         io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
         io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
+        io.DisplaySize = ImVec2(1600, 900); // default size
 
         auto *bd = IM_NEW(NvnBackendData)();
         io.BackendRendererUserData = (void *) bd;
@@ -436,15 +421,6 @@ namespace ImguiNvnBackend {
         bd->isInitialized = false;
 
         io.Fonts->AddFontDefault();
-
-        nvn::DebugCallbackFunc callbackFunc = [](nvn::DebugCallbackSource::Enum source,
-                                                 nvn::DebugCallbackType::Enum type, int unkInt,
-                                                 nvn::DebugCallbackSeverity::Enum severity, const char *unkStr,
-                                                 void *unkPtr) {
-            Logger::log("Str Val: %s\n", unkStr);
-        };
-
-        bd->device->InstallDebugCallback(callbackFunc, nullptr, true);
 
         if (createShaders()) {
             Logger::log("Shader Binaries Loaded! Setting up Render Data.\n");
@@ -470,43 +446,53 @@ namespace ImguiNvnBackend {
     void updateInput() {
         ImGuiIO &io = ImGui::GetIO();
 
-        constexpr int mapping[][2] = {
-                {ImGuiKey_GamepadFaceDown,    static_cast<const int>(nn::hid::NpadButton::A)},
-                {ImGuiKey_GamepadFaceRight,   static_cast<const int>(nn::hid::NpadButton::B)},
-                {ImGuiKey_GamepadFaceUp,      static_cast<const int>(nn::hid::NpadButton::X)},
-                {ImGuiKey_GamepadFaceLeft,    static_cast<const int>(nn::hid::NpadButton::Y)},
-                {ImGuiKey_GamepadL1,          static_cast<const int>(nn::hid::NpadButton::L)},
-                {ImGuiKey_GamepadR1,          static_cast<const int>(nn::hid::NpadButton::R)},
-                {ImGuiKey_GamepadL2,          static_cast<const int>(nn::hid::NpadButton::ZL)},
-                {ImGuiKey_GamepadR2,          static_cast<const int>(nn::hid::NpadButton::ZR)},
-                {ImGuiKey_GamepadStart,       static_cast<const int>(nn::hid::NpadButton::Plus)},
-                {ImGuiKey_GamepadBack,        static_cast<const int>(nn::hid::NpadButton::Minus)},
-                {ImGuiKey_GamepadDpadLeft,    static_cast<const int>(nn::hid::NpadButton::Left)},
-                {ImGuiKey_GamepadDpadRight,   static_cast<const int>(nn::hid::NpadButton::Right)},
-                {ImGuiKey_GamepadDpadUp,      static_cast<const int>(nn::hid::NpadButton::Up)},
-                {ImGuiKey_GamepadDpadDown,    static_cast<const int>(nn::hid::NpadButton::Down)},
-                {ImGuiKey_GamepadLStickLeft,  static_cast<const int>(nn::hid::NpadButton::StickLLeft)},
-                {ImGuiKey_GamepadLStickRight, static_cast<const int>(nn::hid::NpadButton::StickLRight)},
-                {ImGuiKey_GamepadLStickUp,    static_cast<const int>(nn::hid::NpadButton::StickLUp)},
-                {ImGuiKey_GamepadLStickDown,  static_cast<const int>(nn::hid::NpadButton::StickLDown)},
-        };
-
-        for (auto [im_k, nx_k]: mapping) {
-            if (InputHelper::isButtonDown((nn::hid::NpadButton) nx_k))
+        for (auto [im_k, nx_k]: npad_mapping) {
+            if (InputHelper::isButtonPress((nn::hid::NpadButton) nx_k))
                 io.AddKeyEvent((ImGuiKey) im_k, true);
-            else if (InputHelper::isButtonUp((nn::hid::NpadButton) nx_k))
+            else if (InputHelper::isButtonRelease((nn::hid::NpadButton) nx_k))
                 io.AddKeyEvent((ImGuiKey) im_k, false);
         }
+
+        InputHelper::getMouseCoords(&io.MousePos.x, &io.MousePos.y);
+
+        ImVec2 scrollDelta(0, 0);
+
+        InputHelper::getScrollDelta(&scrollDelta.x, &scrollDelta.y);
+
+        if (scrollDelta.x > 0.0f || scrollDelta.y > 0.0f) {
+            io.AddMouseWheelEvent(scrollDelta.x, scrollDelta.y);
+        }
+
+        for (auto [im_k, nx_k]: mouse_mapping) {
+            if (InputHelper::isMousePress((nn::hid::MouseButton) nx_k))
+                io.AddMouseButtonEvent((ImGuiMouseButton) im_k, true);
+            else if (InputHelper::isMouseRelease((nn::hid::MouseButton) nx_k))
+                io.AddMouseButtonEvent((ImGuiMouseButton) im_k, false);
+        }
+
+        for (auto [im_k, nx_k]: key_mapping) {
+            if (InputHelper::isKeyPress((nn::hid::KeyboardKey) nx_k)) {
+                io.AddKeyEvent((ImGuiKey) im_k, true);
+            } else if (InputHelper::isKeyRelease((nn::hid::KeyboardKey) nx_k)) {
+                io.AddKeyEvent((ImGuiKey) im_k, false);
+            }
+        }
+
     }
 
     void newFrame() {
         ImGuiIO &io = ImGui::GetIO();
         auto *bd = getBackendData();
 
-        io.DisplaySize = ImVec2(DISPWIDTH, DISPHEIGHT);
-        u64 curTick = nn::os::GetSystemTick();
-        io.DeltaTime = (((bd->lastTick - curTick) * 625) / 12) / 1e9;
-        bd->lastTick = nn::os::GetSystemTick();
+        nn::TimeSpan curTick = nn::os::GetSystemTick().ToTimeSpan();
+        nn::TimeSpan prevTick(bd->lastTick);
+        io.DeltaTime = fabsf((float) (curTick - prevTick).GetNanoSeconds() / 1e9f);
+
+        bd->lastTick = curTick;
+
+        InputHelper::updatePadState(); // update input helper
+
+        updateInput(); // update backend inputs
     }
 
     void setRenderStates() {
@@ -535,48 +521,44 @@ namespace ImguiNvnBackend {
                                 nvn::BlendFunc::ZERO);
         blendState.SetBlendEquation(nvn::BlendEquation::ADD, nvn::BlendEquation::ADD);
         bd->cmdBuf->BindBlendState(&blendState);
-    }
-
-    void renderDrawData(ImDrawData *drawData) {
-
-        if (!drawData->Valid) {
-//            Logger::log("Draw Data was Invalid! Skipping Render.");
-            return;
-        }
-
-        if (drawData->CmdListsCount == 0) {
-//            Logger::log("Command List was Empty! Skipping Render.\n");
-            return;
-        }
-
-        auto bd = getBackendData();
-        ImGuiIO &io = ImGui::GetIO();
-
-        if (!bd->isInitialized) {
-            Logger::log("Backend Data was not fully initialized!\n");
-            return;
-        }
-
-        if (bd->isUseTestShader) {
-            renderTestShader();
-            return;
-        }
-
-        bd->cmdBuf->BeginRecording();
-
-        bd->cmdBuf->BindProgram(&bd->shaderProgram, nvn::ShaderStageBits::VERTEX | nvn::ShaderStageBits::FRAGMENT);
-
-        bd->cmdBuf->BindUniformBuffer(nvn::ShaderStage::VERTEX, 0, *bd->uniformMemory, UBOSIZE);
-        bd->cmdBuf->UpdateUniformBuffer(*bd->uniformMemory, UBOSIZE, 0, sizeof(projMatrix), &projMatrix);
 
         bd->cmdBuf->BindVertexAttribState(3, bd->attribStates);
         bd->cmdBuf->BindVertexStreamState(1, &bd->streamState);
 
         bd->cmdBuf->SetTexturePool(&bd->texPool);
         bd->cmdBuf->SetSamplerPool(&bd->samplerPool);
+    }
 
-        setRenderStates();
+    void renderDrawData(ImDrawData *drawData) {
 
+        // we dont need to process any data if it isnt valid
+        if (!drawData->Valid) {
+//            Logger::log("Draw Data was Invalid! Skipping Render.");
+            return;
+        }
+        // if we dont have any command lists to draw, we can stop here
+        if (drawData->CmdListsCount == 0) {
+//            Logger::log("Command List was Empty! Skipping Render.\n");
+            return;
+        }
+
+        // get both the main backend data and IO from ImGui
+        auto bd = getBackendData();
+        ImGuiIO &io = ImGui::GetIO();
+
+        // if something went wrong during backend setup, don't try to render anything
+        if (!bd->isInitialized) {
+            Logger::log("Backend Data was not fully initialized!\n");
+            return;
+        }
+
+        // disable imgui rendering if we are using the test shader code
+        if (bd->isUseTestShader) {
+            renderTestShader(drawData);
+            return;
+        }
+
+        // initializes/resizes buffer used for all vertex data created by ImGui
         size_t totalVtxSize = drawData->TotalVtxCount * sizeof(ImDrawVert);
         if (!bd->vtxBuffer || bd->vtxBuffer->GetPoolSize() < totalVtxSize) {
             if (bd->vtxBuffer) {
@@ -590,6 +572,7 @@ namespace ImguiNvnBackend {
             bd->vtxBuffer = IM_NEW(MemoryBuffer)(totalVtxSize);
         }
 
+        // initializes/resizes buffer used for all index data created by ImGui
         size_t totalIdxSize = drawData->TotalIdxCount * sizeof(ImDrawIdx);
         if (!bd->idxBuffer || bd->idxBuffer->GetPoolSize() < totalIdxSize) {
             if (bd->idxBuffer) {
@@ -606,64 +589,85 @@ namespace ImguiNvnBackend {
 
         }
 
+        // if we fail to resize/init either buffers, end execution before we try to use said invalid buffer(s)
         if (!(bd->vtxBuffer->IsBufferReady() && bd->idxBuffer->IsBufferReady())) {
             Logger::log("Cannot Draw Data! Buffers are not Ready.\n");
             return;
         }
 
-        // bind vtx buffer
-        bd->cmdBuf->BindVertexBuffer(0, (*bd->vtxBuffer), bd->vtxBuffer->GetPoolSize());
+        bd->cmdBuf->BeginRecording(); // start recording our commands to the cmd buffer
+
+        bd->cmdBuf->BindProgram(&bd->shaderProgram, nvn::ShaderStageBits::VERTEX |
+                                                    nvn::ShaderStageBits::FRAGMENT); // bind main imgui shader
+
+        bd->cmdBuf->BindUniformBuffer(nvn::ShaderStage::VERTEX, 0, *bd->uniformMemory,
+                                      UBOSIZE); // bind uniform block ptr
+        bd->cmdBuf->UpdateUniformBuffer(*bd->uniformMemory, UBOSIZE, 0, sizeof(projMatrix),
+                                        &projMatrix); // add projection matrix data to uniform data
+
+        setRenderStates(); // sets up the rest of the render state, required so that our shader properly gets drawn to the screen
 
         size_t vtxOffset = 0, idxOffset = 0;
+        nvn::TextureHandle boundTextureHandle = 0;
 
-        // load data into buffers
+        // load data into buffers, and process draw commands
         for (size_t i = 0; i < drawData->CmdListsCount; i++) {
 
             auto cmdList = drawData->CmdLists[i];
 
+            // calc vertex and index buffer sizes
             size_t vtxSize = cmdList->VtxBuffer.Size * sizeof(ImDrawVert);
             size_t idxSize = cmdList->IdxBuffer.Size * sizeof(ImDrawIdx);
 
+            // bind vtx buffer at the current offset
+            bd->cmdBuf->BindVertexBuffer(0, (*bd->vtxBuffer) + vtxOffset, vtxSize);
+
+            // copy data from imgui command list into our gpu dedicated memory
             memcpy(bd->vtxBuffer->GetMemPtr() + vtxOffset, cmdList->VtxBuffer.Data, vtxSize);
             memcpy(bd->idxBuffer->GetMemPtr() + idxOffset, cmdList->IdxBuffer.Data, idxSize);
+
+            for (auto cmd: cmdList->CmdBuffer) {
+
+                // im not exactly sure this scaling is a good solution,
+                // for some reason imgui clipping coords are relative to 720p instead of whatever I set for disp size.
+                ImVec2 origRes(1280.0f, 720.0f);
+                ImVec2 newRes = io.DisplaySize; // (1600.0f, 900.0f);
+
+                ImVec4 clipRect = ImVec4((cmd.ClipRect.x / origRes.x) * newRes.x,
+                                         (cmd.ClipRect.y / origRes.y) * newRes.y,
+                                         (cmd.ClipRect.z / origRes.x) * newRes.x,
+                                         (cmd.ClipRect.w / origRes.y) * newRes.y);
+
+                ImVec2 clip_min(clipRect.x, clipRect.y);
+                ImVec2 clip_max(clipRect.z, clipRect.w);
+                ImVec2 clip_size(clip_max.x - clip_min.x, clip_max.y - clip_min.y);
+
+                if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
+                    continue;
+
+                bd->cmdBuf->SetScissor((int) clip_min.x, (int) clip_min.y,
+                                       (int) clip_size.x, (int) clip_size.y);
+
+                // get texture ID from the command
+                nvn::TextureHandle TexID = *(nvn::TextureHandle *) cmd.GetTexID();
+                // if our previous handle is different from the current, bind the texture
+                if (boundTextureHandle != TexID) {
+                    boundTextureHandle = TexID;
+                    bd->cmdBuf->BindTexture(nvn::ShaderStage::FRAGMENT, 0, TexID);
+                }
+                // draw our vertices using the indices stored in the buffer, offset by the current command index offset,
+                // as well as the current offset into our buffer.
+                bd->cmdBuf->DrawElementsBaseVertex(nvn::DrawPrimitive::TRIANGLES,
+                                                   nvn::IndexType::UNSIGNED_SHORT, cmd.ElemCount,
+                                                   (*bd->idxBuffer) + (cmd.IdxOffset * sizeof(ImDrawIdx)) + idxOffset,
+                                                   cmd.VtxOffset);
+            }
 
             vtxOffset += vtxSize;
             idxOffset += idxSize;
         }
 
-        nvn::TextureHandle boundTextureHandle = 0;
-        // process commands
-        for (int i = 0; i < drawData->CmdListsCount; ++i) {
-
-            if (drawData->CmdListsCount == 0)
-                continue;
-
-            auto cmdList = drawData->CmdLists[i];
-
-            for (auto cmd: cmdList->CmdBuffer) {
-//                ImVec2 clip_min(cmd.ClipRect.x, cmd.ClipRect.y);
-//                ImVec2 clip_max(cmd.ClipRect.z, cmd.ClipRect.w);
-//                if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
-//                    continue;
-//
-//                bd->cmdBuf->SetScissor((int) clip_min.x, (int) (drawData->DisplaySize.y - clip_max.y),
-//                                       (int) (clip_max.x - clip_min.x), (int) (clip_max.y - clip_min.y));
-
-                nvn::TextureHandle TexID = *(nvn::TextureHandle *) cmd.TextureId;
-
-                if (boundTextureHandle != TexID) {
-                    boundTextureHandle = TexID;
-                    bd->cmdBuf->BindTexture(nvn::ShaderStage::FRAGMENT, 0, TexID);
-                }
-
-                bd->cmdBuf->DrawElementsBaseVertex(nvn::DrawPrimitive::TRIANGLES,
-                                                   nvn::IndexType::UNSIGNED_SHORT, cmd.ElemCount,
-                                                   (*bd->idxBuffer) + (cmd.IdxOffset * sizeof(ImDrawIdx)),
-                                                   cmd.VtxOffset);
-
-            }
-        }
-
+        // end the command recording and submit to queue.
         auto handle = bd->cmdBuf->EndRecording();
         bd->queue->SubmitCommands(1, &handle);
     }

@@ -14,6 +14,19 @@ nvn::DeviceGetProcAddressFunc tempGetProcAddressFuncPtr;
 nvn::CommandBufferInitializeFunc tempBufferInitFuncPtr;
 nvn::DeviceInitializeFunc tempDeviceInitFuncPtr;
 nvn::QueueInitializeFunc tempQueueInitFuncPtr;
+nvn::QueuePresentTextureFunc tempPresentTexFunc;
+
+nvn::CommandBufferSetViewportFunc tempSetViewportFunc;
+
+void setViewport(nvn::CommandBuffer *cmdBuf, int x, int y, int w, int h) {
+    tempSetViewportFunc(cmdBuf, x, y, w, h);
+    ImGui::GetIO().DisplaySize = ImVec2(w - x, h - y);
+}
+
+void presentTexture(nvn::Queue *queue, nvn::Window *window, int texIndex) {
+    nvnImGui::procDraw();
+    tempPresentTexFunc(queue, window, texIndex);
+}
 
 NVNboolean deviceInit(nvn::Device *device, const nvn::DeviceBuilder *builder) {
     NVNboolean result = tempDeviceInitFuncPtr(device, builder);
@@ -44,6 +57,12 @@ nvn::GenericFuncPtrFunc getProc(nvn::Device *device, const char *procName) {
     } else if (strcmp(procName, "nvnCommandBufferInitialize") == 0) {
         tempBufferInitFuncPtr = (nvn::CommandBufferInitializeFunc) ptr;
         return (nvn::GenericFuncPtrFunc) &cmdBufInit;
+    } else if (strcmp(procName, "nvnCommandBufferSetViewport") == 0) {
+        tempSetViewportFunc = (nvn::CommandBufferSetViewportFunc) ptr;
+        return (nvn::GenericFuncPtrFunc) &setViewport;
+    } else if (strcmp(procName, "nvnQueuePresentTexture") == 0) {
+        tempPresentTexFunc = (nvn::QueuePresentTextureFunc) ptr;
+        return (nvn::GenericFuncPtrFunc) &presentTexture;
     }
 
     return ptr;
@@ -67,37 +86,26 @@ HOOK_DEFINE_TRAMPOLINE(NvnBootstrapHook) {
     }
 };
 
-// TODO: move this hook into a game agnostic location
-HOOK_DEFINE_TRAMPOLINE(ImGuiRenderFrameHook) {
-    static void *Callback(void *thisPtr) {
-        void *result = Orig(thisPtr);
+void nvnImGui::procDraw() {
 
-        InputHelper::updatePadState(); // update input helper
+    ImguiNvnBackend::newFrame();
+    ImGui::NewFrame();
 
-        ImguiNvnBackend::updateInput(); // update backend inputs
-
-        ImguiNvnBackend::newFrame();
-        ImGui::NewFrame();
-
-        ImGui::ShowDemoWindow();
+    ImGui::ShowDemoWindow();
+//    ImGui::ShowStyleSelector("Style Selector");
 //        ImGui::ShowMetricsWindow();
 //        ImGui::ShowDebugLogWindow();
 //        ImGui::ShowStackToolWindow();
 //        ImGui::ShowAboutWindow();
-//        ImGui::ShowStyleEditor();
 //        ImGui::ShowFontSelector("Font Selector");
 //        ImGui::ShowUserGuide();
 
-        ImGui::Render();
-        ImguiNvnBackend::renderDrawData(ImGui::GetDrawData());
-
-        return result;
-    }
-};
+    ImGui::Render();
+    ImguiNvnBackend::renderDrawData(ImGui::GetDrawData());
+}
 
 void nvnImGui::InstallHooks() {
     NvnBootstrapHook::InstallAtSymbol("nvnBootstrapLoader");
-    ImGuiRenderFrameHook::InstallAtSymbol("_ZN2al15GameFrameworkNx9procDraw_Ev");
 }
 
 bool nvnImGui::InitImGui() {
@@ -130,6 +138,8 @@ bool nvnImGui::InitImGui() {
         };
 
         ImguiNvnBackend::InitBackend(initInfo);
+
+        InputHelper::initKBM();
 
         InputHelper::setPort(0); // set input helpers default port to zero
 
