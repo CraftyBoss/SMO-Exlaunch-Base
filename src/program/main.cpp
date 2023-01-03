@@ -213,7 +213,7 @@ HOOK_DEFINE_TRAMPOLINE(RedirectFileDevice) {
         if (!device)
             return nullptr;
 
-        if (pathNoDrive != NULL)
+        if (pathNoDrive != nullptr)
             sead::Path::getPathExceptDrive(pathNoDrive, path);
 
         return device;
@@ -336,6 +336,15 @@ extern "C" void exl_main(void *x0, void *x1) {
     // ImGui Hooks
 #if IMGUI_ENABLED
     nvnImGui::InstallHooks();
+
+    IMGUINVN_ADDDRAW(
+            ImGui::Begin("Test Window");
+            if (ImGui::Button("Send Test Log")) {
+                Logger::log("Hello from ImGui!\n");
+            }
+            ImGui::End();
+    )
+
 #endif
 
 }

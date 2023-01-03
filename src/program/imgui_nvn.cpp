@@ -21,6 +21,12 @@ nvn::CommandBufferSetViewportFunc tempSetViewportFunc;
 
 bool hasInitImGui = false;
 
+namespace nvnImGui {
+    ImVector<ProcDrawFunc> drawQueue;
+}
+
+#define IMGUI_USEEXAMPLE_DRAW false
+
 void setViewport(nvn::CommandBuffer *cmdBuf, int x, int y, int w, int h) {
     tempSetViewportFunc(cmdBuf, x, y, w, h);
 
@@ -82,9 +88,11 @@ nvn::GenericFuncPtrFunc getProc(nvn::Device *device, const char *procName) {
 }
 
 void disableButtons(nn::hid::NpadBaseState *state) {
-    if (!InputHelper::isReadInputs()) {
-        if (InputHelper::isInputToggled())
-            state->mButtons = nn::hid::NpadButtonSet();
+    if (!InputHelper::isReadInputs() && InputHelper::isInputToggled()) {
+        // clear out the data within the state (except for the sampling number and attributes)
+        state->mButtons = nn::hid::NpadButtonSet();
+        state->mAnalogStickL = nn::hid::AnalogStickState();
+        state->mAnalogStickR = nn::hid::AnalogStickState();
     }
 }
 
@@ -146,19 +154,21 @@ HOOK_DEFINE_TRAMPOLINE(NvnBootstrapHook) {
     }
 };
 
+void nvnImGui::addDrawFunc(ProcDrawFunc func) {
+
+    EXL_ASSERT(!drawQueue.contains(func), "Function has already been added to queue!");
+
+    drawQueue.push_back(func);
+}
+
 void nvnImGui::procDraw() {
 
     ImguiNvnBackend::newFrame();
     ImGui::NewFrame();
 
-    ImGui::ShowDemoWindow();
-//    ImGui::ShowStyleSelector("Style Selector");
-//        ImGui::ShowMetricsWindow();
-//        ImGui::ShowDebugLogWindow();
-//        ImGui::ShowStackToolWindow();
-//        ImGui::ShowAboutWindow();
-//        ImGui::ShowFontSelector("Font Selector");
-//        ImGui::ShowUserGuide();
+    for (auto drawFunc: drawQueue) {
+        drawFunc();
+    }
 
     ImGui::Render();
     ImguiNvnBackend::renderDrawData(ImGui::GetDrawData());
@@ -203,6 +213,20 @@ bool nvnImGui::InitImGui() {
         InputHelper::initKBM();
 
         InputHelper::setPort(0); // set input helpers default port to zero
+
+
+#if IMGUI_USEEXAMPLE_DRAW
+        IMGUINVN_DRAWFUNC(
+                ImGui::ShowDemoWindow();
+            //    ImGui::ShowStyleSelector("Style Selector");
+            //        ImGui::ShowMetricsWindow();
+            //        ImGui::ShowDebugLogWindow();
+            //        ImGui::ShowStackToolWindow();
+            //        ImGui::ShowAboutWindow();
+            //        ImGui::ShowFontSelector("Font Selector");
+            //        ImGui::ShowUserGuide();
+        )
+#endif
 
         return true;
 
