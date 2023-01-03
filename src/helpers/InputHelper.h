@@ -19,6 +19,12 @@ public:
 
     static bool isButtonRelease(nn::hid::NpadButton button);
 
+    // input disabling
+
+    static bool isReadInputs() { return isReadInput; }
+
+    static bool isInputToggled() { return toggleInput; }
+
     // keyboard key presses
 
     static bool isKeyHold(nn::hid::KeyboardKey key);
@@ -115,6 +121,7 @@ public:
 
     static bool isReleasePadDown() { return isButtonRelease(nn::hid::NpadButton::Down); }
 
+
 private:
     static bool tryGetContState(nn::hid::NpadBaseState *state, ulong port);
 
@@ -130,4 +137,7 @@ private:
     static nn::hid::MouseState prevMouseState;
 
     static ulong selectedPort;
+
+    static bool isReadInput;
+    static bool toggleInput;
 };

@@ -1,7 +1,6 @@
 #include "lib.hpp"
 #include "imgui_backend/imgui_impl_nvn.hpp"
 #include "patches.hpp"
-#include "nvn/nvn_CppFuncPtrImpl.h"
 #include "logger/Logger.hpp"
 #include "fs.h"
 
@@ -278,10 +277,6 @@ HOOK_DEFINE_TRAMPOLINE(GameSystemInit) {
 
         gTextWriter->mColor = sead::Color4f(1.f, 1.f, 1.f, 0.8f);
 
-#if IMGUI_ENABLED
-        nvnImGui::InitImGui();
-#endif
-
         Orig(thisPtr);
 
     }
@@ -304,46 +299,6 @@ HOOK_DEFINE_TRAMPOLINE(DrawDebugMenu) {
 //        drawImGuiDebug();
 
         gTextWriter->endDraw();
-
-    }
-};
-
-namespace sead {
-    struct NinJoyNpadDevice;
-}
-
-static bool isDisableInput = true;
-
-HOOK_DEFINE_TRAMPOLINE(NpadDeviceDisableHook) {
-    static void Callback(sead::NinJoyNpadDevice *thisPtr) {
-
-        if (InputHelper::isButtonHold(nn::hid::NpadButton::ZL) &&
-            InputHelper::isButtonPress(nn::hid::NpadButton::ZR)) {
-            isDisableInput = !isDisableInput;
-
-            auto imguibackend = ImguiNvnBackend::getBackendData();
-
-            imguibackend->isDisableInput = isDisableInput;
-
-            Logger::log("%s Input.\n", isDisableInput ? "Disabling" : "Enabling");
-        }
-
-        if (!isDisableInput) {
-            Orig(thisPtr);
-        }
-
-    }
-};
-
-HOOK_DEFINE_TRAMPOLINE(DisableControllerSupportHook) {
-    static int Callback(nn::hid::ControllerSupportResultInfo *info,
-                        nn::hid::ControllerSupportArg const &arg) {
-
-        if (!isDisableInput) {
-            return Orig(info, arg);
-        }
-
-        return 0;
 
     }
 };
@@ -381,12 +336,6 @@ extern "C" void exl_main(void *x0, void *x1) {
     // ImGui Hooks
 #if IMGUI_ENABLED
     nvnImGui::InstallHooks();
-
-    NpadDeviceDisableHook::InstallAtSymbol("_ZN4sead16NinJoyNpadDevice4calcEv");
-
-    DisableControllerSupportHook::InstallAtSymbol(
-            "_ZN2nn3hid21ShowControllerSupportEPNS0_27ControllerSupportResultInfoERKNS0_20ControllerSupportArgE");
-
 #endif
 
 }

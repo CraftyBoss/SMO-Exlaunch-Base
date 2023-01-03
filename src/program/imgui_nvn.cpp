@@ -4,6 +4,7 @@
 #include "lib.hpp"
 #include "logger/Logger.hpp"
 #include "helpers/InputHelper.h"
+#include "nvn_CppFuncPtrImpl.h"
 
 nvn::Device *nvnDevice;
 nvn::Queue *nvnQueue;
@@ -18,13 +19,20 @@ nvn::QueuePresentTextureFunc tempPresentTexFunc;
 
 nvn::CommandBufferSetViewportFunc tempSetViewportFunc;
 
+bool hasInitImGui = false;
+
 void setViewport(nvn::CommandBuffer *cmdBuf, int x, int y, int w, int h) {
     tempSetViewportFunc(cmdBuf, x, y, w, h);
-    ImGui::GetIO().DisplaySize = ImVec2(w - x, h - y);
+
+    if (hasInitImGui)
+        ImGui::GetIO().DisplaySize = ImVec2(w - x, h - y);
 }
 
 void presentTexture(nvn::Queue *queue, nvn::Window *window, int texIndex) {
-    nvnImGui::procDraw();
+
+    if (hasInitImGui)
+        nvnImGui::procDraw();
+
     tempPresentTexFunc(queue, window, texIndex);
 }
 
@@ -44,6 +52,11 @@ NVNboolean queueInit(nvn::Queue *queue, const nvn::QueueBuilder *builder) {
 NVNboolean cmdBufInit(nvn::CommandBuffer *buffer, nvn::Device *device) {
     NVNboolean result = tempBufferInitFuncPtr(buffer, device);
     nvnCmdBuf = buffer;
+
+    if (!hasInitImGui) {
+        hasInitImGui = nvnImGui::InitImGui();
+    }
+
     return result;
 }
 
@@ -67,6 +80,53 @@ nvn::GenericFuncPtrFunc getProc(nvn::Device *device, const char *procName) {
 
     return ptr;
 }
+
+void disableButtons(nn::hid::NpadBaseState *state) {
+    if (!InputHelper::isReadInputs()) {
+        if (InputHelper::isInputToggled())
+            state->mButtons = nn::hid::NpadButtonSet();
+    }
+}
+
+HOOK_DEFINE_TRAMPOLINE(DisableFullKeyState) {
+    static int Callback(int *unkInt, nn::hid::NpadFullKeyState *state, int count, uint const &port) {
+        int result = Orig(unkInt, state, count, port);
+        disableButtons(state);
+        return result;
+    }
+};
+
+HOOK_DEFINE_TRAMPOLINE(DisableHandheldState) {
+    static int Callback(int *unkInt, nn::hid::NpadHandheldState *state, int count, uint const &port) {
+        int result = Orig(unkInt, state, count, port);
+        disableButtons(state);
+        return result;
+    }
+};
+
+HOOK_DEFINE_TRAMPOLINE(DisableJoyDualState) {
+    static int Callback(int *unkInt, nn::hid::NpadJoyDualState *state, int count, uint const &port) {
+        int result = Orig(unkInt, state, count, port);
+        disableButtons(state);
+        return result;
+    }
+};
+
+HOOK_DEFINE_TRAMPOLINE(DisableJoyLeftState) {
+    static int Callback(int *unkInt, nn::hid::NpadJoyLeftState *state, int count, uint const &port) {
+        int result = Orig(unkInt, state, count, port);
+        disableButtons(state);
+        return result;
+    }
+};
+
+HOOK_DEFINE_TRAMPOLINE(DisableJoyRightState) {
+    static int Callback(int *unkInt, nn::hid::NpadJoyRightState *state, int count, uint const &port) {
+        int result = Orig(unkInt, state, count, port);
+        disableButtons(state);
+        return result;
+    }
+};
 
 HOOK_DEFINE_TRAMPOLINE(NvnBootstrapHook) {
     static void *Callback(const char *funcName) {
@@ -106,10 +166,11 @@ void nvnImGui::procDraw() {
 
 void nvnImGui::InstallHooks() {
     NvnBootstrapHook::InstallAtSymbol("nvnBootstrapLoader");
+    DisableFullKeyState::InstallAtSymbol("_ZN2nn3hid6detail13GetNpadStatesEPiPNS0_16NpadFullKeyStateEiRKj");
 }
 
 bool nvnImGui::InitImGui() {
-    if (nvnDevice && nvnQueue) {
+    if (nvnDevice && nvnQueue && nvnCmdBuf) {
 
         Logger::log("Creating ImGui.\n");
 
