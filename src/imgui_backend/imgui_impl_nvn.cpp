@@ -443,30 +443,16 @@ namespace ImguiNvnBackend {
 
     }
 
-    void updateInput() {
-
-        if (!InputHelper::isInputToggled()) {
-            return;
-        }
-
-        ImGuiIO &io = ImGui::GetIO();
-
-        for (auto [im_k, nx_k]: npad_mapping) {
-            if (InputHelper::isButtonPress((nn::hid::NpadButton) nx_k))
-                io.AddKeyEvent((ImGuiKey) im_k, true);
-            else if (InputHelper::isButtonRelease((nn::hid::NpadButton) nx_k))
-                io.AddKeyEvent((ImGuiKey) im_k, false);
-        }
-
-        InputHelper::getMouseCoords(&io.MousePos.x, &io.MousePos.y);
+    void updateMouse(ImGuiIO &io) {
+        ImVec2 mousePos(0, 0);
+        InputHelper::getMouseCoords(&mousePos.x, &mousePos.y);
+        io.AddMousePosEvent(mousePos.x, mousePos.y);
 
         ImVec2 scrollDelta(0, 0);
-
         InputHelper::getScrollDelta(&scrollDelta.x, &scrollDelta.y);
 
-        if (scrollDelta.x > 0.0f || scrollDelta.y > 0.0f) {
-            io.AddMouseWheelEvent(scrollDelta.x, scrollDelta.y);
-        }
+        if (scrollDelta.x != 0.0f)
+            io.AddMouseWheelEvent(0.0f, scrollDelta.x > 0.0f ? 0.5f : -0.5f);
 
         for (auto [im_k, nx_k]: mouse_mapping) {
             if (InputHelper::isMousePress((nn::hid::MouseButton) nx_k))
@@ -474,7 +460,9 @@ namespace ImguiNvnBackend {
             else if (InputHelper::isMouseRelease((nn::hid::MouseButton) nx_k))
                 io.AddMouseButtonEvent((ImGuiMouseButton) im_k, false);
         }
+    }
 
+    void updateKeyboard(ImGuiIO &io) {
         for (auto [im_k, nx_k]: key_mapping) {
             if (InputHelper::isKeyPress((nn::hid::KeyboardKey) nx_k)) {
                 io.AddKeyEvent((ImGuiKey) im_k, true);
@@ -482,7 +470,26 @@ namespace ImguiNvnBackend {
                 io.AddKeyEvent((ImGuiKey) im_k, false);
             }
         }
+    }
 
+    void updateGamepad(ImGuiIO &io) {
+        for (auto [im_k, nx_k]: npad_mapping) {
+            if (InputHelper::isButtonPress((nn::hid::NpadButton) nx_k))
+                io.AddKeyEvent((ImGuiKey) im_k, true);
+            else if (InputHelper::isButtonRelease((nn::hid::NpadButton) nx_k))
+                io.AddKeyEvent((ImGuiKey) im_k, false);
+        }
+    }
+
+    void updateInput() {
+
+        ImGuiIO &io = ImGui::GetIO();
+        updateKeyboard(io);
+        updateMouse(io);
+
+        if (InputHelper::isInputToggled()) {
+            updateGamepad(io);
+        }
     }
 
     void newFrame() {
