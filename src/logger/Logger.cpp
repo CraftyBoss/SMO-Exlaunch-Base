@@ -9,7 +9,7 @@
 char socketPool[0x600000 + 0x20000] __attribute__((aligned(0x1000)));
 
 Logger &Logger::instance() {
-    static Logger instance;
+    static Logger instance = {};
     return instance;
 }
 
