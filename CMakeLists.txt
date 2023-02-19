@@ -65,6 +65,7 @@ if (FTP_IP)
 endif()
 
 if(RYU_PATH)
+  add_custom_command(TARGET subsdk9_meta POST_BUILD COMMAND mkdir -p ${RYU_PATH}/mods/contents/${TITLE_ID}/mods/exefs/)
   add_custom_command(TARGET subsdk9_meta POST_BUILD COMMAND cp ${CMAKE_BINARY_DIR}/main.npdm ${RYU_PATH}/mods/contents/${TITLE_ID}/mods/exefs/main.npdm)
   add_custom_command(TARGET subsdk9_meta POST_BUILD COMMAND cp ${CMAKE_BINARY_DIR}/subsdk9 ${RYU_PATH}/mods/contents/${TITLE_ID}/mods/exefs/subsdk9)
 endif ()
