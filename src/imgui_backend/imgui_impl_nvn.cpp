@@ -1,4 +1,5 @@
 #include <cmath>
+#include <pl.h>
 #include "imgui_impl_nvn.hpp"
 #include "imgui_hid_mappings.h"
 #include "lib.hpp"
@@ -241,6 +242,40 @@ namespace ImguiNvnBackend {
         return false;
     }
 
+    bool loadSystemFont() {
+        void *addr_std = nn::pl::GetSharedFontAddress(nn::pl::SharedFontType::STANDARD);
+        u32 size_std = nn::pl::GetSharedFontSize(nn::pl::SharedFontType::STANDARD);
+
+        void *addr_ext = nn::pl::GetSharedFontAddress(nn::pl::SharedFontType::NN_EXT);
+        u32 size_ext = nn::pl::GetSharedFontSize(nn::pl::SharedFontType::NN_EXT);
+
+        if (!((addr_std && size_std > 0) && (addr_ext && size_ext > 0))) {
+            return false;
+        }
+
+        ImGuiIO &io = ImGui::GetIO();
+
+        ImFontConfig fnt_cfg;
+        strcpy(fnt_cfg.Name, "Nintendo Standard");
+        fnt_cfg.FontDataOwnedByAtlas = false;
+        ImWchar extended_range[] = {0xe000, 0xe152};
+
+        io.Fonts->AddFontFromMemoryTTF(addr_std, size_std, 14.0f, &fnt_cfg, io.Fonts->GetGlyphRangesJapanese());
+
+        fnt_cfg.MergeMode = true;
+        io.Fonts->AddFontFromMemoryTTF(addr_ext, size_ext, 14.0f, &fnt_cfg, extended_range);
+
+        io.Fonts->Flags |= ImFontAtlasFlags_NoPowerOfTwoHeight;
+        if (!io.Fonts->Build()) {
+            Logger::log("Failed to build Font!\n");
+            return false;
+        }
+
+        Logger::log("Loaded System Font.\n");
+
+        return true;
+    }
+
     bool setupFont() {
 
         Logger::log("Setting up ImGui Font.\n");
@@ -273,6 +308,14 @@ namespace ImguiNvnBackend {
             Logger::log("Failed to Create Texture Pool!\n");
             return false;
         }
+
+        // load switch font data into imgui
+
+        if (!loadSystemFont()) {
+            Logger::log("Failed to load Switch System Font! Falling back to default ImGui font.\n");
+        }
+
+        io.Fonts->AddFontDefault();
 
         // convert imgui font texels
 
@@ -419,8 +462,6 @@ namespace ImguiNvnBackend {
         bd->queue = initInfo.queue;
         bd->cmdBuf = initInfo.cmdBuf;
         bd->isInitialized = false;
-
-        io.Fonts->AddFontDefault();
 
         if (createShaders()) {
             Logger::log("Shader Binaries Loaded! Setting up Render Data.\n");
