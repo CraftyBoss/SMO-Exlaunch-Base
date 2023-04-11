@@ -5,6 +5,7 @@
 #include "lib.hpp"
 #include "helpers.h"
 #include "logger/Logger.hpp"
+#include "imgui_bin.h"
 
 #include "nn/os.h"
 #include "nn/hid.h"
@@ -225,14 +226,10 @@ namespace ImguiNvnBackend {
         } else {
             Logger::log("Unable to compile shaders at runtime. falling back to pre-compiled shaders.\n");
 
-            FsHelper::LoadData loadData = {
-                    .path = "sd:/smo/ShaderData/imgui.bin"
-            };
+            bd->imguiShaderBinary.size = imgui_bin_size;
+            bd->imguiShaderBinary.ptr = (u8 *) IM_ALLOC(imgui_bin_size);
 
-            FsHelper::loadFileFromPath(loadData);
-
-            bd->imguiShaderBinary.size = loadData.bufSize;
-            bd->imguiShaderBinary.ptr = (u8 *) loadData.buffer;
+            memcpy(bd->imguiShaderBinary.ptr, imgui_bin, imgui_bin_size);
         }
 
         if (bd->imguiShaderBinary.size > 0) {
