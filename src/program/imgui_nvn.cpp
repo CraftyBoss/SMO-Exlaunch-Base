@@ -17,7 +17,7 @@ nvn::DeviceInitializeFunc tempDeviceInitFuncPtr;
 nvn::QueueInitializeFunc tempQueueInitFuncPtr;
 nvn::QueuePresentTextureFunc tempPresentTexFunc;
 
-nvn::CommandBufferSetViewportFunc tempSetViewportFunc;
+nvn::WindowSetCropFunc tempSetCropFunc;
 
 bool hasInitImGui = false;
 
@@ -27,11 +27,25 @@ namespace nvnImGui {
 
 #define IMGUI_USEEXAMPLE_DRAW false
 
-void setViewport(nvn::CommandBuffer *cmdBuf, int x, int y, int w, int h) {
-    tempSetViewportFunc(cmdBuf, x, y, w, h);
+void setCrop(nvn::Window *window, int x, int y, int w, int h) {
+    tempSetCropFunc(window, x, y, w, h);
 
-    if (hasInitImGui)
-        ImGui::GetIO().DisplaySize = ImVec2(w - x, h - y);
+    if (hasInitImGui) {
+
+        ImVec2 &dispSize = ImGui::GetIO().DisplaySize;
+        ImVec2 windowSize = ImVec2(w - x, h - y);
+
+        if (dispSize.x != windowSize.x && dispSize.y != windowSize.y) {
+
+            // might be a dumb way to detect if docked
+            bool isDockedMode = !(windowSize.x == 1280 && windowSize.y == 720);
+
+            dispSize = windowSize;
+            ImguiNvnBackend::updateProjection(windowSize);
+            ImguiNvnBackend::updateScale(isDockedMode);
+
+        }
+    }
 }
 
 void presentTexture(nvn::Queue *queue, nvn::Window *window, int texIndex) {
@@ -76,9 +90,9 @@ nvn::GenericFuncPtrFunc getProc(nvn::Device *device, const char *procName) {
     } else if (strcmp(procName, "nvnCommandBufferInitialize") == 0) {
         tempBufferInitFuncPtr = (nvn::CommandBufferInitializeFunc) ptr;
         return (nvn::GenericFuncPtrFunc) &cmdBufInit;
-    } else if (strcmp(procName, "nvnCommandBufferSetViewport") == 0) {
-        tempSetViewportFunc = (nvn::CommandBufferSetViewportFunc) ptr;
-        return (nvn::GenericFuncPtrFunc) &setViewport;
+    } else if (strcmp(procName, "nvnWindowSetCrop") == 0) {
+        tempSetCropFunc = (nvn::WindowSetCropFunc) ptr;
+        return (nvn::GenericFuncPtrFunc) &setCrop;
     } else if (strcmp(procName, "nvnQueuePresentTexture") == 0) {
         tempPresentTexFunc = (nvn::QueuePresentTextureFunc) ptr;
         return (nvn::GenericFuncPtrFunc) &presentTexture;

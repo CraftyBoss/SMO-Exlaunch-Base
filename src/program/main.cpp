@@ -211,7 +211,7 @@ HOOK_DEFINE_TRAMPOLINE(FileLoaderLoadArc) {
     }
 };
 
-sead::FileDevice* tryFindNewDevice(sead::SafeString &path, sead::FileDevice *orig) {
+sead::FileDevice *tryFindNewDevice(sead::SafeString &path, sead::FileDevice *orig) {
     sead::FileDevice *sdFileDevice = sead::FileDeviceMgr::instance()->findDevice("sd");
 
     if (sdFileDevice && sdFileDevice->isExistFile(path))
@@ -284,6 +284,7 @@ extern "C" void exl_main(void *x0, void *x1) {
     exl::hook::Initialize();
 
     nn::os::SetUserExceptionHandler(exception_handler, nullptr, 0, nullptr);
+    installExceptionStub();
 
     Logger::instance().init(LOGGER_IP, 3080);
 
@@ -296,8 +297,10 @@ extern "C" void exl_main(void *x0, void *x1) {
     RedirectFileDevice::InstallAtOffset(0x76CFE0);
     FileLoaderLoadArc::InstallAtOffset(0xA5EF64);
     CreateFileDeviceMgr::InstallAtOffset(0x76C8D4);
-    FileLoaderIsExistFile::InstallAtSymbol("_ZNK2al10FileLoader11isExistFileERKN4sead14SafeStringBaseIcEEPNS1_10FileDeviceE");
-    FileLoaderIsExistArchive::InstallAtSymbol("_ZNK2al10FileLoader14isExistArchiveERKN4sead14SafeStringBaseIcEEPNS1_10FileDeviceE");
+    FileLoaderIsExistFile::InstallAtSymbol(
+            "_ZNK2al10FileLoader11isExistFileERKN4sead14SafeStringBaseIcEEPNS1_10FileDeviceE");
+    FileLoaderIsExistArchive::InstallAtSymbol(
+            "_ZNK2al10FileLoader14isExistArchiveERKN4sead14SafeStringBaseIcEEPNS1_10FileDeviceE");
 
     // Sead Debugging Overriding
 
