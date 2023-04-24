@@ -153,7 +153,7 @@ macro(__add_binary_library target)
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin2s_lib)
     add_custom_command(
             OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/bin2s_lib/${target}.s
-            COMMAND ${bin2s} ${ARGN} > ${CMAKE_CURRENT_BINARY_DIR}/bin2s_lib/${target}.s
+            COMMAND ${bin2s} -a 4096 ${ARGN} > ${CMAKE_CURRENT_BINARY_DIR}/bin2s_lib/${target}.s
             DEPENDS ${ARGN}
             WORKING_DIRECTORY ..
     )
