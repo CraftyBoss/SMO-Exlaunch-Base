@@ -1,6 +1,9 @@
 #include "PlayerHelper.h"
-#include "al/util/OtherUtil.h"
-#include "game/GameData/GameDataFunction.h"
+
+#include <al/Library/Player/PlayerHolder.h>
+#include <al/Library/LiveActor/ActorMovementFunction.h>
+
+#include <game/GameData/GameDataFunction.h>
 
 namespace PlayerHelper {
     void killPlayer(al::LiveActor *actor) {

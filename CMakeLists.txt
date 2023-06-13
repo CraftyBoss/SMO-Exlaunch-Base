@@ -13,6 +13,9 @@ if (LOGGER_IP)
     add_compile_definitions(LOGGER_IP="${LOGGER_IP}")
 endif ()
 
+## this is gross, but we use it to access everything in headers from the games libraries
+add_compile_definitions(private=public)
+
 ## Title Id
 set(TITLE_ID 0100000000010000)
 set(CONFIG_TITLE_ID 0x${TITLE_ID})
@@ -20,16 +23,26 @@ add_compile_definitions(EXL_PROGRAM_ID=${CONFIG_TITLE_ID} NNSDK=1 IMGUI_USER_CON
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/module/subsdk9.json.template ${CMAKE_CURRENT_BINARY_DIR}/subsdk9.json)
 
 ## Project sources
-include_directories(${PROJECT_SOURCE_DIR}/src/lib)
-include_directories(${PROJECT_SOURCE_DIR}/src/nvn)
-include_directories(${PROJECT_SOURCE_DIR}/src/nn)
-include_directories(${PROJECT_SOURCE_DIR}/src/program)
-include_directories(${PROJECT_SOURCE_DIR}/src/sead)
+include_directories(${PROJECT_SOURCE_DIR}/libs)
+
+# include_directories(${PROJECT_SOURCE_DIR}/libs/exl)
+include_directories(${PROJECT_SOURCE_DIR}/libs/imgui)
+include_directories(${PROJECT_SOURCE_DIR}/libs/sead)
+
+include_directories(${PROJECT_SOURCE_DIR}/libs/NintendoSDK)
+include_directories(${PROJECT_SOURCE_DIR}/libs/NintendoSDK/nn)
+include_directories(${PROJECT_SOURCE_DIR}/libs/NintendoSDK/nvn)
+include_directories(${PROJECT_SOURCE_DIR}/libs/NintendoSDK/nvnTool)
+
 include_directories(${PROJECT_SOURCE_DIR}/src)
+include_directories(${PROJECT_SOURCE_DIR}/src/lib)
+include_directories(${PROJECT_SOURCE_DIR}/src/program)
+
 include_directories(${PROJECT_SOURCE_DIR}/imgui)
-file(GLOB_RECURSE SOURCES_ASM ${PROJECT_SOURCE_DIR}/src/*.s)
-file(GLOB_RECURSE SOURCES_H ${PROJECT_SOURCE_DIR}/src/*.h ${PROJECT_SOURCE_DIR}/src/*.hpp)
-file(GLOB_RECURSE SOURCES_CXX ${PROJECT_SOURCE_DIR}/src/*.cpp ${PROJECT_SOURCE_DIR}/src/*.c)
+
+file(GLOB_RECURSE SOURCES_ASM ${PROJECT_SOURCE_DIR}/src/*.s ${PROJECT_SOURCE_DIR}/libs/*.s  ${PROJECT_SOURCE_DIR}/libs/*.s)
+file(GLOB_RECURSE SOURCES_H ${PROJECT_SOURCE_DIR}/src/*.h ${PROJECT_SOURCE_DIR}/src/*.hpp   ${PROJECT_SOURCE_DIR}/libs/*.h ${PROJECT_SOURCE_DIR}/libs/*.hpp)
+file(GLOB_RECURSE SOURCES_CXX ${PROJECT_SOURCE_DIR}/src/*.cpp ${PROJECT_SOURCE_DIR}/src/*.c ${PROJECT_SOURCE_DIR}/libs/*.cpp ${PROJECT_SOURCE_DIR}/libs/*.c)
 file(GLOB IMGUI_SOURCES ${PROJECT_SOURCE_DIR}/imgui/*.cpp)
 file(GLOB_RECURSE LOCAL_LIBRARIES ${PROJECT_SOURCE_DIR}/libs/*.a)
 

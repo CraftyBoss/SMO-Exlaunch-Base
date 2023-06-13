@@ -29,17 +29,10 @@ typedef volatile s32 vs32;   ///<  32-bit volatile signed integer.
 typedef volatile s64 vs64;   ///<  64-bit volatile signed integer.
 typedef volatile s128 vs128; ///< 128-bit volatile signed integer.
 
-typedef unsigned char   uchar;
-typedef	unsigned short	ushort;
-typedef	unsigned int	uint;	
-typedef	unsigned long	ulong;
-
-typedef unsigned char   undefined;
-typedef unsigned char    undefined1;
-typedef unsigned short    undefined2;
-typedef unsigned int    undefined3;
-typedef unsigned int    undefined4;
-typedef unsigned long    undefined8;
+typedef unsigned char uchar;
+typedef unsigned short ushort;
+typedef unsigned int uint;
+typedef unsigned long ulong;
 
 #define ALIGN_UP(x, a) ((((uintptr_t)x) + (((uintptr_t)a)-1)) & ~(((uintptr_t)a)-1))
 #define ALIGN_DOWN(x, a) ((uintptr_t)(x) & ~(((uintptr_t)(a)) - 1))
@@ -47,13 +40,15 @@ typedef unsigned long    undefined8;
 #define ON_INIT         __attribute__((constructor))
 #define NOINLINE        __attribute__((noinline))
 #define NORETURN        __attribute__((noreturn))
+#define EXPORT_SYM      __attribute__ ((visibility ("default")))
+#define STRIP_SYM       __attribute__ ((visibility ("hidden")))
 #define UNREACHABLE __builtin_unreachable()
 #define PAGE_SIZE (0x1000)
 #define ALWAYS_INLINE inline __attribute__((always_inline))
 #define BITSIZEOF(x) (sizeof(x) * CHAR_BIT)
 
 typedef __builtin_va_list va_list;
-#define va_start(v,l) __builtin_va_start(v,l)
+#define va_start(v, l) __builtin_va_start(v,l)
 #define va_end(v) __builtin_va_end(v)
 
 #define RAD(deg) (deg * (M_PI / 180)) // converts Degrees to Radians
@@ -63,11 +58,5 @@ typedef __builtin_va_list va_list;
 // used to convert macro values to strings
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
-
-//using u64 = std::uint64_t;
-//using s64 = std::int64_t;
-
-// stores a result on a lot of OS-related functions
-typedef u32 Result;
-typedef u32 Handle;
-typedef void (*ThreadFunc)(void*);
+#define BYTESTOMB(Byte) ((Byte) * 0.00097656) * 0.00097656
+#define MBTOBYTES(Byte) ((Byte) / 0.00097656) / 0.00097656
