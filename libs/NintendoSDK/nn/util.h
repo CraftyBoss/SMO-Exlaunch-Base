@@ -11,6 +11,7 @@
 #include <lib/nx/types.h>
 #include <type_traits>
 #include "util/util_BitPack.h"
+#include "util/util_BitFlagSet.h"
 
 namespace nn {
     namespace util {
@@ -64,29 +65,6 @@ namespace nn {
             u16 mFirstBlockOffs;       // _16
             u32 mRelocationTableOffs;  // _18
             u32 mSize;                 // _1C
-        };
-
-//        template<s32 size, typename Enum>
-//        struct BitFlagSet {
-//            using Storage = std::underlying_type_t<Enum>;
-//            Storage field: size;
-//
-//            inline bool isFlagSet(Enum t) const {
-//                return (field & static_cast<Storage>(t)) != 0;
-//            }
-//        };
-
-        template<s32 size, typename T>
-        struct BitFlagSet {
-            using type = std::conditional_t<size <= 32, u32, u64>;
-            static const int storageBits = static_cast<int>(sizeof(type)) * 8;
-            static const int storageCount = static_cast<int>((size + storageBits - 1)) / storageBits;
-            type field[storageCount];
-
-            inline bool isBitSet(T index) const {
-                return (this->field[static_cast<u64>(index) / storageBits] &
-                        (static_cast<type>(1) << static_cast<u64>(index) % storageBits)) != 0;
-            }
         };
 
         s32 SNPrintf(char *s, ulong n, const char *format, ...);
