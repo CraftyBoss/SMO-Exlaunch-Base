@@ -1,3 +1,4 @@
+#include <oe.h>
 #include "imgui_nvn.h"
 #include "imgui_backend/imgui_impl_nvn.hpp"
 #include "init.h"
@@ -36,9 +37,10 @@ void setCrop(nvn::Window *window, int x, int y, int w, int h) {
         ImVec2 windowSize = ImVec2(w - x, h - y);
 
         if (dispSize.x != windowSize.x && dispSize.y != windowSize.y) {
+            bool isDockedMode = nn::oe::GetOperationMode() == nn::oe::OperationMode_Docked;
 
-            // might be a dumb way to detect if docked
-            bool isDockedMode = !(windowSize.x == 1280 && windowSize.y == 720);
+            Logger::log("Updating Projection and Scale to: X %f Y %f\n", windowSize.x, windowSize.y);
+            Logger::log("Previous Size: X %f Y %f\n", dispSize.x, dispSize.y);
 
             dispSize = windowSize;
             ImguiNvnBackend::updateProjection(windowSize);
