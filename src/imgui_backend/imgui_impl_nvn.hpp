@@ -87,14 +87,6 @@ namespace ImguiNvnBackend {
         ShaderUBO mShaderUBO = {};
 
         CompiledData imguiShaderBinary;
-
-        // test shader data
-
-        bool isUseTestShader = false;
-        nvn::Program testShader;
-        nvn::ShaderData testShaderDatas[2]; // 0 - Vert 1 - Frag
-        MemoryBuffer *testShaderBuffer;
-        CompiledData testShaderBinary;
     };
 
     bool createShaders();

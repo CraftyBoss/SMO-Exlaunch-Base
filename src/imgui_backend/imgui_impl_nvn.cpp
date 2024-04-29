@@ -56,126 +56,6 @@ namespace ImguiNvnBackend {
                 ScaleWindow(g.Windows[i], scale);
     }
 
-    // doesn't get used anymore really, as back when it was needed i had a simplified shader to test with, but now I just test with the actual imgui shader
-    void initTestShader() {
-
-        auto bd = getBackendData();
-        bd->testShaderBinary = ImguiShaderCompiler::CompileShader("test");
-
-        bd->testShaderBuffer = IM_NEW(MemoryBuffer)(bd->testShaderBinary.size, bd->testShaderBinary.ptr,
-                                                    nvn::MemoryPoolFlags::CPU_UNCACHED |
-                                                    nvn::MemoryPoolFlags::GPU_CACHED |
-                                                    nvn::MemoryPoolFlags::SHADER_CODE);
-
-        EXL_ASSERT(bd->testShaderBuffer->IsBufferReady(), "Shader Buffer was not ready! unable to continue.");
-
-        BinaryHeader offsetData = BinaryHeader((u32 *) bd->testShaderBinary.ptr);
-
-        nvn::BufferAddress addr = bd->testShaderBuffer->GetBufferAddress();
-
-        nvn::ShaderData &vertShaderData = bd->testShaderDatas[0];
-        vertShaderData.data = addr + offsetData.mVertexDataOffset;
-        vertShaderData.control = bd->testShaderBinary.ptr + offsetData.mVertexControlOffset;
-
-        nvn::ShaderData &fragShaderData = bd->testShaderDatas[1];
-        fragShaderData.data = addr + offsetData.mFragmentDataOffset;
-        fragShaderData.control = bd->testShaderBinary.ptr + offsetData.mFragmentControlOffset;
-
-        EXL_ASSERT(bd->testShader.Initialize(bd->device), "Unable to Init Program!");
-        EXL_ASSERT(bd->testShader.SetShaders(2, bd->testShaderDatas), "Unable to Set Shaders!");
-
-        Logger::log("Test Shader Setup.\n");
-
-    }
-
-    // neat tool to cycle through all loaded textures in a texture pool
-    int texIDSelector() {
-        {
-
-            static int curId = 256;
-            static int downCounter = 0;
-            static int upCounter = 0;
-
-            if (InputHelper::isButtonPress(nn::hid::NpadButton::Left)) {
-                curId--;
-                Logger::log("ID: %d\n", curId);
-            } else if (InputHelper::isButtonHold(nn::hid::NpadButton::Left)) {
-
-                downCounter++;
-                if (downCounter > 30) {
-                    curId--;
-                    Logger::log("ID: %d\n", curId);
-                }
-            } else {
-                downCounter = 0;
-            }
-
-            if (InputHelper::isButtonPress(nn::hid::NpadButton::Right)) {
-                curId++;
-                Logger::log("ID: %d\n", curId);
-            } else if (InputHelper::isButtonHold(nn::hid::NpadButton::Right)) {
-
-                upCounter++;
-                if (upCounter > 30) {
-                    curId++;
-                    Logger::log("ID: %d\n", curId);
-                }
-            } else {
-                upCounter = 0;
-            }
-
-            /* fun values with bd->device->GetTextureHandle(curId, 256):
-             * 282 = Window Texture
-             * 393 = Some sort of render pass (shadow?) nvm it just seems to be the first occurrence of many more textures like it
-             * 257 = debug font texture
-             */
-
-            return curId;
-        }
-    }
-
-    // places ImDrawVerts, starting at startIndex, that use the x,y,width, and height values to define vertex coords
-    void createQuad(ImDrawVert *verts, int startIndex, int x, int y, int width, int height, ImU32 col) {
-
-        float minXVal = x;
-        float maxXVal = x + width;
-        float minYVal = y; // 400
-        float maxYVal = y + height; // 400
-
-        // top left
-        ImDrawVert p1 = {
-                .pos = ImVec2(minXVal, minYVal),
-                .uv = ImVec2(0.0f, 0.0f),
-                .col = col
-        };
-        // top right
-        ImDrawVert p2 = {
-                .pos = ImVec2(minXVal, maxYVal),
-                .uv = ImVec2(0.0f, 1.0f),
-                .col = col
-        };
-        // bottom left
-        ImDrawVert p3 = {
-                .pos = ImVec2(maxXVal, minYVal),
-                .uv = ImVec2(1.0f, 0.0f),
-                .col = col
-        };
-        // bottom right
-        ImDrawVert p4 = {
-                .pos = ImVec2(maxXVal, maxYVal),
-                .uv = ImVec2(1.0f, 1.0f),
-                .col = col
-        };
-
-        verts[startIndex] = p4;
-        verts[startIndex + 1] = p2;
-        verts[startIndex + 2] = p1;
-
-        verts[startIndex + 3] = p1;
-        verts[startIndex + 4] = p3;
-        verts[startIndex + 5] = p4;
-    }
-
 // backend impl
 
     NvnBackendData *getBackendData() {
@@ -448,9 +328,6 @@ namespace ImguiNvnBackend {
 
         if (createShaders()) {
             Logger::log("Shader Binaries Loaded! Setting up Render Data.\n");
-
-            if (bd->isUseTestShader)
-                initTestShader();
 
             if (setupShaders(bd->imguiShaderBinary.ptr, bd->imguiShaderBinary.size) && setupFont()) {
                 Logger::log("Rendering Setup!\n");
