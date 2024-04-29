@@ -6,7 +6,10 @@
 
 #define ISEMU false
 
-char socketPool[0x600000 + 0x20000] __attribute__((aligned(0x1000)));
+// does this pool really need to be this big?
+static constexpr int poolSize = 0x600000;
+static constexpr int allocPoolSize = 0x20000;
+char socketPool[poolSize + allocPoolSize] __attribute__((aligned(0x1000)));
 
 Logger &Logger::instance() {
     static Logger instance = {};
@@ -29,7 +32,7 @@ nn::Result Logger::init(const char *ip, u16 port) {
 
     nn::nifm::Initialize();
 
-    nn::socket::Initialize(socketPool, 0x600000, 0x20000, 0xE);
+    nn::socket::Initialize(socketPool, poolSize, allocPoolSize, 0xE);
 
     nn::nifm::SubmitNetworkRequest();
 

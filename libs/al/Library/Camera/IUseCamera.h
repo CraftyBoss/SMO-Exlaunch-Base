@@ -1,10 +1,11 @@
 #pragma once
 
-namespace al {
-class CameraDirector;
+#include <al/Library/Camera/CameraDirector.h>
 
-class IUseCamera {
-public:
-    virtual CameraDirector* getCameraDirector() const = 0;
-};
+namespace al {
+
+    class IUseCamera {
+    public:
+        virtual CameraDirector *getCameraDirector() const = 0;
+    };
 }  // namespace al

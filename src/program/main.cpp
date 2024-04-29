@@ -309,6 +309,7 @@ extern "C" void exl_main(void *x0, void *x1) {
     // General Hooks
 
     ControlHook::InstallAtSymbol("_ZN10StageScene7controlEv");
+    PlayerHelper::installHooks();
 
     // ImGui Hooks
 #if IMGUI_ENABLED

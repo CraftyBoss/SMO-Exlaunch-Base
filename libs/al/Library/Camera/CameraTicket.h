@@ -1,6 +1,7 @@
 #pragma once
 
 #include <al/Library/Placement/PlacementId.h>
+#include <al/Library/Yaml/ByamlIter.h>
 
 namespace al {
 
@@ -8,11 +9,16 @@ namespace al {
 
     class CameraTicketId {
     public:
-        CameraTicketId(al::PlacementId const*,char const*);
-        void isEqual(al::CameraTicketId const&);
-        void isEqual(al::CameraTicketId const&,al::CameraTicketId const&);
-        void isEqual(al::ByamlIter const&);
+        CameraTicketId(al::PlacementId const *, char const *);
+
+        void isEqual(al::CameraTicketId const &);
+
+        void isEqual(al::CameraTicketId const &, al::CameraTicketId const &);
+
+        void isEqual(al::ByamlIter const &);
+
         void tryGetObjId(void);
+
         void getObjId(void);
 
         al::PlacementId *mPlacement;
@@ -22,7 +28,8 @@ namespace al {
 
     class CameraTicket {
     public:
-        CameraTicket(CameraPoser *,CameraTicketId const*,int);
+        CameraTicket(CameraPoser *, CameraTicketId const *, int);
+
         void setPriority(int);
 
         CameraPoser *mPoser;

@@ -112,7 +112,7 @@ CompiledData NOINLINE CreateShaderBinary(GLSLCoutput *compileData, const char *s
     if (outputFile) {
 
         char fullPath[0x40] = {};
-        createPath(fullPath, "sd:/smo/shaders", shaderName, ".bin");
+        createPath(fullPath, "sd:/smo/ShaderData", shaderName, ".bin");
 
         R_ABORT_UNLESS(FsHelper::writeFileToPath(binaryBuffer, binarySize, fullPath))
 
@@ -211,15 +211,19 @@ CompiledData ImguiShaderCompiler::CompileShader(const char *shaderName) {
     if (!glslcDll->GlslcInitialize(&initInfo)) {
         Logger::log("Unable to Init with info.\n");
         return {};
+    } else {
+        Logger::log("GLSLC initialized!\n");
     }
 
     const char *shaders[6];
     NVNshaderStage stages[6];
 
-    char vshPath[0x40] = {}; //"sd:/smo/shaders/sources/imgui_vsh.glsl";
-    createPath(vshPath, "sd:/smo/shaders/sources", shaderName, "_vsh.glsl");
-    char fshPath[0x40] = {}; //"sd:/smo/shaders/sources/imgui_fsh.glsl";
-    createPath(fshPath, "sd:/smo/shaders/sources", shaderName, "_fsh.glsl");
+    char vshPath[0x50] = {}; //"sd:/smo/shaders/sources/imgui_vsh.glsl";
+    createPath(vshPath, "sd:/smo/ShaderData/Sources", shaderName, "_vsh.glsl");
+    char fshPath[0x50] = {}; //"sd:/smo/shaders/sources/imgui_fsh.glsl";
+    createPath(fshPath, "sd:/smo/ShaderData/Sources", shaderName, "_fsh.glsl");
+
+    Logger::log("Loading shaders at Paths:\n%s\n%s\n", vshPath, fshPath);
 
     shaders[0] = GetShaderSource(vshPath);
     stages[0] = NVNshaderStage::NVN_SHADER_STAGE_VERTEX;
@@ -230,6 +234,13 @@ CompiledData ImguiShaderCompiler::CompileShader(const char *shaderName) {
     initInfo.input.sources = shaders;
     initInfo.input.stages = stages;
     initInfo.input.count = 2;
+
+    if (!(shaders[0] && shaders[1])) {
+        Logger::log("Failed to load Shader Source(s). Unable to compile.\n");
+        return {};
+    }
+
+    Logger::log("Got Shaders. Attempting to Compile.\n");
 
     if (glslcDll->GlslcCompile(&initInfo)) {
         Logger::log("Successfully Compiled Shaders!\n");
@@ -248,6 +259,6 @@ CompiledData ImguiShaderCompiler::CompileShader(const char *shaderName) {
     glslc_Free((void *) shaders[0]);
     glslc_Free((void *) shaders[1]);
 
-    return CreateShaderBinary(initInfo.lastCompiledResults->glslcOutput, shaderName, false);
+    return CreateShaderBinary(initInfo.lastCompiledResults->glslcOutput, shaderName, true);
 
 }

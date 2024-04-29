@@ -18,7 +18,6 @@
 #define UBOSIZE 0x1000
 
 namespace ImguiNvnBackend {
-
     void make_identity(Matrix44f &mtx) {
         Matrix44f ident = {
                 {1.0f, 0.0f, 0.0f, 0.0f},
@@ -177,62 +176,6 @@ namespace ImguiNvnBackend {
         verts[startIndex + 5] = p4;
     }
 
-    // this function is mainly what I used to debug the rendering of ImGui, so code is a bit messier
-    void renderTestShader(ImDrawData *drawData) {
-
-        auto bd = getBackendData();
-        auto io = ImGui::GetIO();
-
-        constexpr int triVertCount = 3;
-        constexpr int quadVertCount = triVertCount * 2;
-
-        int quadCount = 1; // modify to reflect how many quads need to be drawn per frame
-
-        int pointCount = quadVertCount * quadCount;
-
-        size_t totalVtxSize = pointCount * sizeof(ImDrawVert);
-        if (!bd->vtxBuffer || bd->vtxBuffer->GetPoolSize() < totalVtxSize) {
-            if (bd->vtxBuffer) {
-                bd->vtxBuffer->Finalize();
-                IM_FREE(bd->vtxBuffer);
-            }
-            bd->vtxBuffer = IM_NEW(MemoryBuffer)(totalVtxSize);
-            Logger::log("(Re)sized Vertex Buffer to Size: %d\n", totalVtxSize);
-        }
-
-        if (!bd->vtxBuffer->IsBufferReady()) {
-            Logger::log("Cannot Draw Data! Buffers are not Ready.\n");
-            return;
-        }
-
-        ImDrawVert *verts = (ImDrawVert *) bd->vtxBuffer->GetMemPtr();
-
-        float scale = 3.0f;
-
-        float imageX = 1 * scale; // bd->fontTexture.GetWidth();
-        float imageY = 1 * scale; // bd->fontTexture.GetHeight();
-
-        createQuad(verts, 0, (io.DisplaySize.x / 2) - (imageX), (io.DisplaySize.y / 2) - (imageY), imageX, imageY,
-                   IM_COL32_WHITE);
-
-        bd->cmdBuf->BeginRecording();
-        bd->cmdBuf->BindProgram(&bd->shaderProgram, nvn::ShaderStageBits::VERTEX | nvn::ShaderStageBits::FRAGMENT);
-
-        bd->cmdBuf->BindUniformBuffer(nvn::ShaderStage::VERTEX, 0, *bd->uniformMemory, UBOSIZE);
-        bd->cmdBuf->UpdateUniformBuffer(*bd->uniformMemory, UBOSIZE, 0, sizeof(bd->mProjMatrix), &bd->mProjMatrix);
-
-        bd->cmdBuf->BindVertexBuffer(0, (*bd->vtxBuffer), bd->vtxBuffer->GetPoolSize());
-
-        setRenderStates();
-
-//        bd->cmdBuf->BindTexture(nvn::ShaderStage::FRAGMENT, 0, bd->fontTexHandle);
-
-        bd->cmdBuf->DrawArrays(nvn::DrawPrimitive::TRIANGLES, 0, pointCount);
-
-        auto handle = bd->cmdBuf->EndRecording();
-        bd->queue->SubmitCommands(1, &handle);
-    }
-
 // backend impl
 
     NvnBackendData *getBackendData() {
@@ -338,9 +281,9 @@ namespace ImguiNvnBackend {
 
         // load switch font data into imgui
 
-        if (!loadSystemFont()) {
-            Logger::log("Failed to load Switch System Font! Falling back to default ImGui font.\n");
-        }
+//        if (!loadSystemFont()) {
+//            Logger::log("Failed to load Switch System Font! Falling back to default ImGui font.\n");
+//        }
 
         io.Fonts->AddFontDefault();
 
@@ -500,6 +443,9 @@ namespace ImguiNvnBackend {
         bd->cmdBuf = initInfo.cmdBuf;
         bd->isInitialized = false;
 
+        // set this to true if your implementation does not need to convert sRGB to linear
+        bd->mShaderUBO.isUseSrgb = false;
+
         if (createShaders()) {
             Logger::log("Shader Binaries Loaded! Setting up Render Data.\n");
 
@@ -611,7 +557,7 @@ namespace ImguiNvnBackend {
     }
 
     void updateProjection(ImVec2 dispSize) {
-        orthoRH_ZO(getBackendData()->mProjMatrix, 0.0f, dispSize.x, dispSize.y, 0.0f, -1.0f, 1.0f);
+        orthoRH_ZO(getBackendData()->mShaderUBO.mMtx, 0.0f, dispSize.x, dispSize.y, 0.0f, -1.0f, 1.0f);
     }
 
     void updateScale(bool isDocked) {
@@ -716,12 +662,6 @@ namespace ImguiNvnBackend {
             return;
         }
 
-        // disable imgui rendering if we are using the test shader code
-        if (bd->isUseTestShader) {
-            renderTestShader(drawData);
-            return;
-        }
-
         // initializes/resizes buffer used for all vertex data created by ImGui
         size_t totalVtxSize = drawData->TotalVtxCount * sizeof(ImDrawVert);
         if (!bd->vtxBuffer || bd->vtxBuffer->GetPoolSize() < totalVtxSize) {
@@ -765,9 +705,13 @@ namespace ImguiNvnBackend {
                                                     nvn::ShaderStageBits::FRAGMENT); // bind main imgui shader
 
         bd->cmdBuf->BindUniformBuffer(nvn::ShaderStage::VERTEX, 0, *bd->uniformMemory,
-                                      UBOSIZE); // bind uniform block ptr
-        bd->cmdBuf->UpdateUniformBuffer(*bd->uniformMemory, UBOSIZE, 0, sizeof(bd->mProjMatrix),
-                                        &bd->mProjMatrix); // add projection matrix data to uniform data
+                                      UBOSIZE); // bind uniform block ptr to vertex stage
+
+        bd->cmdBuf->BindUniformBuffer(nvn::ShaderStage::FRAGMENT, 0, *bd->uniformMemory,
+                                      UBOSIZE); // bind uniform block ptr to fragment stage
+
+        bd->cmdBuf->UpdateUniformBuffer(*bd->uniformMemory, UBOSIZE, 0, sizeof(bd->mShaderUBO),
+                                        &bd->mShaderUBO); // add projection matrix data to uniform data
 
         setRenderStates(); // sets up the rest of the render state, required so that our shader properly gets drawn to the screen
 
@@ -809,7 +753,7 @@ namespace ImguiNvnBackend {
                 // if our previous handle is different from the current, bind the texture
                 if (boundTextureHandle != TexID) {
                     boundTextureHandle = TexID;
-                    bd->cmdBuf->BindTexture(nvn::ShaderStage::FRAGMENT, 0, TexID);
+                    bd->cmdBuf->BindTexture(nvn::ShaderStage::FRAGMENT, 1, TexID);
                 }
                 // draw our vertices using the indices stored in the buffer, offset by the current command index offset,
                 // as well as the current offset into our buffer.

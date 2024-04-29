@@ -4,38 +4,52 @@
 #include <math/seadVector.h>
 #include <al/Library/HostIO/IUseHioNode.h>
 #include <al/Library/Model/ModelKeeper.h>
+#include <al/Library/Camera/CameraDirector.h>
 
 namespace al {
-class AudioDirector;
-class CameraDirector;
-class AudioEventController;
-class AudioEffectController;
-class AudioRequestKeeperSyncedBgm;
-class AudioMic;
-class SeKeeper;
-class BgmKeeper;
+    class AudioDirector;
 
-class AudioKeeper : public al::IUseHioNode {
-private:
-    AudioEventController* mAudioEventController;
-    AudioEffectController* mAudioEffectController;
-    AudioRequestKeeperSyncedBgm* mAudioRequestKeeperSyncedBgm;
-    SeKeeper* mSeKeeper;
-    BgmKeeper* mBgmKeeper;
-    AudioMic* mAudioMic;
+    class AudioEventController;
 
-public:
-    AudioKeeper(al::AudioDirector const*);
-    ~AudioKeeper();
+    class AudioEffectController;
 
-    void initSeKeeper(al::AudioDirector const*, char const*, sead::Vector3f const*,
-                      sead::Matrix34f const*, al::ModelKeeper const*, al::CameraDirector*);
-    void initBgmKeeper(al::AudioDirector const*, char const*);
-    void validate(void);
-    void invalidate(void);
-    void startClipped(void);
-    void endClipped(void);
-    void appear(void);
-    void kill(void);
-};
+    class AudioRequestKeeperSyncedBgm;
+
+    class AudioMic;
+
+    class SeKeeper;
+
+    class BgmKeeper;
+
+    class AudioKeeper : public al::IUseHioNode {
+    private:
+        AudioEventController *mAudioEventController;
+        AudioEffectController *mAudioEffectController;
+        AudioRequestKeeperSyncedBgm *mAudioRequestKeeperSyncedBgm;
+        SeKeeper *mSeKeeper;
+        BgmKeeper *mBgmKeeper;
+        AudioMic *mAudioMic;
+
+    public:
+        AudioKeeper(al::AudioDirector const *);
+
+        ~AudioKeeper();
+
+        void initSeKeeper(al::AudioDirector const *, char const *, sead::Vector3f const *,
+                          sead::Matrix34f const *, al::ModelKeeper const *, al::CameraDirector *);
+
+        void initBgmKeeper(al::AudioDirector const *, char const *);
+
+        void validate(void);
+
+        void invalidate(void);
+
+        void startClipped(void);
+
+        void endClipped(void);
+
+        void appear(void);
+
+        void kill(void);
+    };
 }  // namespace al
