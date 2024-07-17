@@ -3,7 +3,6 @@
 #include "patches.hpp"
 #include "logger/Logger.hpp"
 #include "fs.h"
-#include "helpers/InputHelper.h"
 #include "helpers/PlayerHelper.h"
 #include "imgui_nvn.h"
 #include "ExceptionHandler.h"
@@ -15,31 +14,18 @@
 #include <filedevice/seadFileDeviceMgr.h>
 #include <filedevice/seadPath.h>
 #include <resource/seadArchiveRes.h>
-#include <heap/seadHeapMgr.h>
-#include <devenv/seadDebugFontMgrNvn.h>
 #include <gfx/seadTextWriter.h>
-#include <gfx/seadViewport.h>
 
 #include <al/Library/File/FileLoader.h>
-#include <al/Library/File/FileUtil.h>
 
 #include <game/StageScene/StageScene.h>
 #include <game/System/GameSystem.h>
 #include <game/System/Application.h>
 #include <game/HakoniwaSequence/HakoniwaSequence.h>
-#include <game/GameData/GameDataFunction.h>
 
 #include "rs/util.hpp"
 
-#include "agl/utl.h"
-
-static const char *DBG_FONT_PATH = "DebugData/Font/nvn_font_jis1.ntx";
-static const char *DBG_SHADER_PATH = "DebugData/Font/nvn_font_shader_jis1.bin";
-static const char *DBG_TBL_PATH = "DebugData/Font/nvn_font_jis1_tbl.bin";
-
 #define IMGUI_ENABLED true
-
-sead::TextWriter *gTextWriter;
 
 void drawDebugWindow() {
     HakoniwaSequence *gameSeq = (HakoniwaSequence *) GameSystemFunction::getGameSystem()->mCurSequence;
@@ -117,6 +103,18 @@ void drawDebugWindow() {
             PlayerHelper::killPlayer(playerBase);
         }
     }
+
+    ImGui::End();
+}
+
+void drawFpsWindow() {
+    ImGui::SetNextWindowPos(ImVec2(0.f, 0.f));
+
+    ImGui::Begin("FPSCounter", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+                                              ImGuiWindowFlags_NoSavedSettings |
+                                              ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBackground);
+
+    ImGui::Text("FPS: %d\n", static_cast<int>(roundf(Application::instance()->mFramework->calcFps())));
 
     ImGui::End();
 }
@@ -230,48 +228,7 @@ HOOK_DEFINE_TRAMPOLINE(FileLoaderIsExistArchive) {
 
 HOOK_DEFINE_TRAMPOLINE(GameSystemInit) {
     static void Callback(GameSystem *thisPtr) {
-
-        sead::Heap *curHeap = sead::HeapMgr::instance()->getCurrentHeap();
-
-        sead::DebugFontMgrJis1Nvn::createInstance(curHeap);
-
-        if (al::isExistFile(DBG_SHADER_PATH) && al::isExistFile(DBG_FONT_PATH) && al::isExistFile(DBG_TBL_PATH)) {
-            sead::DebugFontMgrJis1Nvn::instance()->initialize(curHeap, DBG_SHADER_PATH, DBG_FONT_PATH, DBG_TBL_PATH,
-                                                              0x100000);
-        }
-
-        sead::TextWriter::setDefaultFont(sead::DebugFontMgrJis1Nvn::instance());
-
-        al::GameDrawInfo *drawInfo = Application::instance()->mDrawInfo;
-
-        agl::DrawContext *context = drawInfo->mDrawContext;
-        agl::RenderBuffer *renderBuffer = drawInfo->mFirstRenderBuffer;
-
-        sead::Viewport *viewport = new sead::Viewport(*renderBuffer);
-
-        gTextWriter = new sead::TextWriter(context, viewport);
-
-        gTextWriter->setupGraphics(context);
-
-        gTextWriter->mColor = sead::Color4f(1.f, 1.f, 1.f, 0.8f);
-
         Orig(thisPtr);
-
-    }
-};
-
-HOOK_DEFINE_TRAMPOLINE(DrawDebugMenu) {
-    static void Callback(HakoniwaSequence *thisPtr) {
-
-        Orig(thisPtr);
-
-        gTextWriter->beginDraw();
-
-        gTextWriter->setCursorFromTopLeft(sead::Vector2f(10.f, 10.f));
-        gTextWriter->printf("FPS: %d\n", static_cast<int>(round(Application::instance()->mFramework->calcFps())));
-
-        gTextWriter->endDraw();
-
     }
 };
 
@@ -302,10 +259,6 @@ extern "C" void exl_main(void *x0, void *x1) {
 
     ReplaceSeadPrint::InstallAtOffset(0xB59E28);
 
-    // Debug Text Writer Drawing
-
-    DrawDebugMenu::InstallAtOffset(0x50F1D8);
-
     // General Hooks
 
     ControlHook::InstallAtSymbol("_ZN10StageScene7controlEv");
@@ -316,6 +269,7 @@ extern "C" void exl_main(void *x0, void *x1) {
     nvnImGui::InstallHooks();
 
     nvnImGui::addDrawFunc(drawDebugWindow);
+    nvnImGui::addDrawFunc(drawFpsWindow);
 #endif
 
 }

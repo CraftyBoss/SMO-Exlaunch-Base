@@ -1,5 +1,7 @@
 #pragma once
 
+#include <devenv/seadDebugFontMgrNvn.h>
+#include <devenv/seadFontBase.h>
 #include <gfx/seadColor.h>
 #include <math/seadBoundBox.h>
 
