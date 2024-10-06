@@ -110,12 +110,6 @@ void drawFpsWindow() {
     ImGui::End();
 }
 
-HOOK_DEFINE_TRAMPOLINE(ControlHook) {
-    static void Callback(StageScene *scene) {
-        Orig(scene);
-    }
-};
-
 HOOK_DEFINE_REPLACE(ReplaceSeadPrint) {
     static void Callback(const char *format, ...) {
         va_list args;
@@ -125,15 +119,8 @@ HOOK_DEFINE_REPLACE(ReplaceSeadPrint) {
     }
 };
 
-
-HOOK_DEFINE_TRAMPOLINE(GameSystemInit) {
-    static void Callback(GameSystem *thisPtr) {
-        Orig(thisPtr);
-    }
-};
-
 extern "C" void exl_main(void *x0, void *x1) {
-    /* Setup hooking enviroment. */
+    /* Setup hooking environment. */
     exl::hook::Initialize();
 
     nn::os::SetUserExceptionHandler(exception_handler, nullptr, 0, nullptr);
@@ -143,19 +130,13 @@ extern "C" void exl_main(void *x0, void *x1) {
 
     runCodePatches();
 
-    GameSystemInit::InstallAtOffset(0x535850);
-
     // SD File Redirection
-
     FileRedirection::InstallHooks();
 
     // Sead Debugging Overriding
-
     ReplaceSeadPrint::InstallAtOffset(0xB59E28);
 
     // General Hooks
-
-    ControlHook::InstallAtSymbol("_ZN10StageScene7controlEv");
     PlayerHelper::installHooks();
 
     // ImGui Hooks
