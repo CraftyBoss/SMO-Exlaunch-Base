@@ -2,21 +2,11 @@
 #include "imgui_backend/imgui_impl_nvn.hpp"
 #include "patches.hpp"
 #include "logger/Logger.hpp"
-#include "fs.h"
 #include "helpers/PlayerHelper.h"
 #include "imgui_nvn.h"
 #include "ExceptionHandler.h"
 
 #include <basis/seadRawPrint.h>
-#include <prim/seadSafeString.h>
-#include <resource/seadResourceMgr.h>
-#include <filedevice/nin/seadNinSDFileDeviceNin.h>
-#include <filedevice/seadFileDeviceMgr.h>
-#include <filedevice/seadPath.h>
-#include <resource/seadArchiveRes.h>
-#include <gfx/seadTextWriter.h>
-
-#include <al/Library/File/FileLoader.h>
 
 #include <game/StageScene/StageScene.h>
 #include <game/System/GameSystem.h>
@@ -24,6 +14,7 @@
 #include <game/HakoniwaSequence/HakoniwaSequence.h>
 
 #include "rs/util.hpp"
+#include "file_redirection.h"
 
 #define IMGUI_ENABLED true
 
@@ -111,8 +102,8 @@ void drawFpsWindow() {
     ImGui::SetNextWindowPos(ImVec2(0.f, 0.f));
 
     ImGui::Begin("FPSCounter", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
-                                              ImGuiWindowFlags_NoSavedSettings |
-                                              ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBackground);
+                                        ImGuiWindowFlags_NoSavedSettings |
+                                        ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBackground);
 
     ImGui::Text("FPS: %d\n", static_cast<int>(roundf(Application::instance()->mFramework->calcFps())));
 
@@ -134,97 +125,6 @@ HOOK_DEFINE_REPLACE(ReplaceSeadPrint) {
     }
 };
 
-HOOK_DEFINE_TRAMPOLINE(CreateFileDeviceMgr) {
-    static void Callback(sead::FileDeviceMgr *thisPtr) {
-
-        Orig(thisPtr);
-
-        thisPtr->mMountedSd = nn::fs::MountSdCardForDebug("sd").isSuccess();
-
-        sead::NinSDFileDevice *sdFileDevice = new sead::NinSDFileDevice();
-
-        thisPtr->mount(sdFileDevice);
-    }
-};
-
-HOOK_DEFINE_TRAMPOLINE(RedirectFileDevice) {
-    static sead::FileDevice *
-    Callback(sead::FileDeviceMgr *thisPtr, sead::SafeString &path, sead::BufferedSafeString *pathNoDrive) {
-
-        sead::FixedSafeString<32> driveName;
-        sead::FileDevice *device;
-
-        // Logger::log("Path: %s\n", path.cstr());
-
-        if (!sead::Path::getDriveName(&driveName, path)) {
-
-            device = thisPtr->findDevice("sd");
-
-            if (!(device && device->isExistFile(path))) {
-
-                device = thisPtr->getDefaultFileDevice();
-
-                if (!device) {
-                    Logger::log("drive name not found and default file device is null\n");
-                    return nullptr;
-                }
-
-            } else {
-                Logger::log("Found File on SD! Path: %s\n", path.cstr());
-            }
-
-        } else
-            device = thisPtr->findDevice(driveName);
-
-        if (!device)
-            return nullptr;
-
-        if (pathNoDrive != nullptr)
-            sead::Path::getPathExceptDrive(pathNoDrive, path);
-
-        return device;
-    }
-};
-
-HOOK_DEFINE_TRAMPOLINE(FileLoaderLoadArc) {
-    static sead::ArchiveRes *
-    Callback(al::FileLoader *thisPtr, sead::SafeString &path, const char *ext, sead::FileDevice *device) {
-
-        // Logger::log("Path: %s\n", path.cstr());
-
-        sead::FileDevice *sdFileDevice = sead::FileDeviceMgr::instance()->findDevice("sd");
-
-        if (sdFileDevice && sdFileDevice->isExistFile(path)) {
-
-            Logger::log("Found File on SD! Path: %s\n", path.cstr());
-
-            device = sdFileDevice;
-        }
-
-        return Orig(thisPtr, path, ext, device);
-    }
-};
-
-sead::FileDevice *tryFindNewDevice(sead::SafeString &path, sead::FileDevice *orig) {
-    sead::FileDevice *sdFileDevice = sead::FileDeviceMgr::instance()->findDevice("sd");
-
-    if (sdFileDevice && sdFileDevice->isExistFile(path))
-        return sdFileDevice;
-
-    return orig;
-}
-
-HOOK_DEFINE_TRAMPOLINE(FileLoaderIsExistFile) {
-    static bool Callback(al::FileLoader *thisPtr, sead::SafeString &path, sead::FileDevice *device) {
-        return Orig(thisPtr, path, tryFindNewDevice(path, device));
-    }
-};
-
-HOOK_DEFINE_TRAMPOLINE(FileLoaderIsExistArchive) {
-    static bool Callback(al::FileLoader *thisPtr, sead::SafeString &path, sead::FileDevice *device) {
-        return Orig(thisPtr, path, tryFindNewDevice(path, device));
-    }
-};
 
 HOOK_DEFINE_TRAMPOLINE(GameSystemInit) {
     static void Callback(GameSystem *thisPtr) {
@@ -247,13 +147,7 @@ extern "C" void exl_main(void *x0, void *x1) {
 
     // SD File Redirection
 
-    RedirectFileDevice::InstallAtOffset(0x76CFE0);
-    FileLoaderLoadArc::InstallAtOffset(0xA5EF64);
-    CreateFileDeviceMgr::InstallAtOffset(0x76C8D4);
-    FileLoaderIsExistFile::InstallAtSymbol(
-            "_ZNK2al10FileLoader11isExistFileERKN4sead14SafeStringBaseIcEEPNS1_10FileDeviceE");
-    FileLoaderIsExistArchive::InstallAtSymbol(
-            "_ZNK2al10FileLoader14isExistArchiveERKN4sead14SafeStringBaseIcEEPNS1_10FileDeviceE");
+    FileRedirection::InstallHooks();
 
     // Sead Debugging Overriding
 
