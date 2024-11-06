@@ -289,21 +289,21 @@ namespace al {
 
     bool isFar(const al::LiveActor *actor, const sead::Vector3f &, f32);
 
-    void calcDistance(const al::LiveActor *actor, const al::LiveActor *target);
+    float calcDistance(const al::LiveActor *actor, const al::LiveActor *target);
 
-    void calcDistance(const al::LiveActor *actor, const sead::Vector3f &);
+    float calcDistance(const al::LiveActor *actor, const sead::Vector3f &);
 
-    void calcDistanceV(const al::LiveActor *actor, const al::LiveActor *target);
+    float calcDistanceV(const al::LiveActor *actor, const al::LiveActor *target);
 
-    void calcDistanceH(const al::LiveActor *actor, const al::LiveActor *target);
+    float calcDistanceH(const al::LiveActor *actor, const al::LiveActor *target);
 
-    void calcDistanceH(const al::LiveActor *actor, const sead::Vector3f &, const sead::Vector3f &);
+    float calcDistanceH(const al::LiveActor *actor, const sead::Vector3f &, const sead::Vector3f &);
 
-    void calcHeight(const al::LiveActor *actor, const al::LiveActor *target);
+    float calcHeight(const al::LiveActor *actor, const al::LiveActor *target);
 
-    void calcDistanceFront(const al::LiveActor *actor, const sead::Vector3f &);
+    float calcDistanceFront(const al::LiveActor *actor, const sead::Vector3f &);
 
-    void calcDistanceFront(const al::LiveActor *actor, const al::LiveActor *target);
+    float calcDistanceFront(const al::LiveActor *actor, const al::LiveActor *target);
 
     void addRotateAndRepeatX(al::LiveActor *actor, f32);
 

@@ -2,6 +2,7 @@
 
 #include <al/Library/Scene/SceneObjHolder.h>
 #include <al/Library/Camera/CameraDirector.h>
+#include <al/Library/Draw/GraphicsSystemInfo.h>
 
 namespace al {
     class AreaObjDirector;
@@ -35,8 +36,6 @@ namespace al {
     class ShadowDirector;
 
     class ModelGroup;
-
-    class GraphicsSystemInfo;
 
     class ModelDrawBufferCounter;
 

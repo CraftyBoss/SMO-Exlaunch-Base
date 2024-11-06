@@ -3,8 +3,12 @@
 #include "logger/Logger.hpp"
 
 MemoryBuffer::MemoryBuffer(size_t size) {
-
     auto *bd = ImguiNvnBackend::getBackendData();
+
+    if (!bd->device) {
+        Logger::log("Backend Device was null!\n");
+        return;
+    }
 
     size_t alignedSize = ALIGN_UP(size, 0x1000);
 
@@ -32,8 +36,12 @@ MemoryBuffer::MemoryBuffer(size_t size) {
 }
 
 MemoryBuffer::MemoryBuffer(size_t size, nvn::MemoryPoolFlags flags) {
-
     auto *bd = ImguiNvnBackend::getBackendData();
+
+    if (!bd->device) {
+        Logger::log("Backend Device was null!\n");
+        return;
+    }
 
     size_t alignedSize = ALIGN_UP(size, 0x1000);
 
@@ -61,8 +69,12 @@ MemoryBuffer::MemoryBuffer(size_t size, nvn::MemoryPoolFlags flags) {
 }
 
 MemoryBuffer::MemoryBuffer(size_t size, void *bufferPtr, nvn::MemoryPoolFlags flags) {
-
     auto *bd = ImguiNvnBackend::getBackendData();
+
+    if (!bd->device) {
+        Logger::log("Backend Device was null!\n");
+        return;
+    }
 
     memBuffer = bufferPtr;
 

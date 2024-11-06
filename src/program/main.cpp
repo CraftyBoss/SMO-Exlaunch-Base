@@ -4,7 +4,6 @@
 #include "logger/Logger.hpp"
 #include "helpers/PlayerHelper.h"
 #include "imgui_nvn.h"
-#include "ExceptionHandler.h"
 
 #include <basis/seadRawPrint.h>
 
@@ -12,9 +11,11 @@
 #include <game/System/GameSystem.h>
 #include <game/System/Application.h>
 #include <game/HakoniwaSequence/HakoniwaSequence.h>
+#include <exception/ExceptionHandler.h>
 
 #include "rs/util.hpp"
 #include "file_redirection.h"
+#include "stage_warp.h"
 
 #define IMGUI_ENABLED true
 
@@ -40,51 +41,6 @@ void drawDebugWindow() {
 
     bool isInGame =
             curScene && curScene->mIsAlive;
-
-    if (ImGui::CollapsingHeader("World List")) {
-        for (auto &entry: gameSeq->mGameDataHolder.mData->mWorldList->mWorldList) {
-            if (ImGui::TreeNode(entry.mMainStageName)) {
-
-                if (isInGame) {
-                    if (ImGui::Button("Warp to World")) {
-                        PlayerHelper::warpPlayer(entry.mMainStageName, gameSeq->mGameDataHolder);
-                    }
-                }
-
-                ImGui::BulletText("Clear Main Scenario: %d", entry.mClearMainScenario);
-                ImGui::BulletText("Ending Scenario: %d", entry.mEndingScenario);
-                ImGui::BulletText("Moon Rock Scenario: %d", entry.mMoonRockScenario);
-
-                if (ImGui::TreeNode("Main Quest Infos")) {
-                    for (int i = 0; i < entry.mQuestInfoCount; ++i) {
-                        ImGui::BulletText("Quest %d Scenario: %d", i, entry.mMainQuestIndexes[i]);
-                    }
-                    ImGui::TreePop();
-                }
-
-                if (ImGui::CollapsingHeader("Database Entries")) {
-                    for (auto &dbEntry: entry.mStageNames) {
-                        if (ImGui::TreeNode(dbEntry.mStageName.cstr())) {
-                            ImGui::BulletText("Stage Category: %s", dbEntry.mStageCategory.cstr());
-                            ImGui::BulletText("Stage Use Scenario: %d", dbEntry.mUseScenario);
-
-                            if (isInGame) {
-                                ImGui::Bullet();
-                                if (ImGui::SmallButton("Warp to Stage")) {
-                                    PlayerHelper::warpPlayer(dbEntry.mStageName.cstr(),
-                                                             gameSeq->mGameDataHolder);
-                                }
-                            }
-
-                            ImGui::TreePop();
-                        }
-                    }
-                }
-
-                ImGui::TreePop();
-            }
-        }
-    }
 
     if (isInGame) {
         StageScene *stageScene = gameSeq->mStageScene;
@@ -123,8 +79,10 @@ extern "C" void exl_main(void *x0, void *x1) {
     /* Setup hooking environment. */
     exl::hook::Initialize();
 
-    nn::os::SetUserExceptionHandler(exception_handler, nullptr, 0, nullptr);
-    installExceptionStub();
+    handler::installExceptionHandler([](handler::ExceptionInfo &info) {
+        handler::printCrashReport(info);
+        return false;
+    });
 
     Logger::instance().init(LOGGER_IP, 3080);
 
@@ -145,8 +103,8 @@ extern "C" void exl_main(void *x0, void *x1) {
 
     nvnImGui::addDrawFunc(drawDebugWindow);
     nvnImGui::addDrawFunc(drawFpsWindow);
+    nvnImGui::addDrawFunc(drawStageWarpWindow);
 #endif
-
 }
 
 extern "C" NORETURN void exl_exception_entry() {
